@@ -1,0 +1,80 @@
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+generator client {
+  provider             = "prisma-client-py"
+  recursive_type_depth = 5
+}
+
+enum ReviewSource {
+  google
+  zomato
+  tripadvisor
+}
+
+enum SentimentLabel {
+  positive
+  neutral
+  negative
+}
+
+model Restaurant {
+  id              String           @id @default(uuid())
+  name            String           @db.VarChar(200)
+  branch_code     String           @unique @db.VarChar(50)
+  city            String           @db.VarChar(100)
+  address         String?          @db.Text
+  google_place_id String?          @db.VarChar(200)
+  zomato_url      String?          @db.Text
+  tripadvisor_url String?          @db.Text
+  phone           String?          @db.VarChar(20)
+  manager_name    String?          @db.VarChar(200)
+  is_active       Boolean          @default(true)
+  created_at      DateTime         @default(now())
+  updated_at      DateTime         @updatedAt
+  reviews         Review[]
+  analytics_cache AnalyticsCache[]
+
+  @@map("restaurants")
+}
+
+model Review {
+  id                   String          @id @default(uuid())
+  restaurant_id        String
+  restaurant           Restaurant      @relation(fields: [restaurant_id], references: [id], onDelete: Cascade)
+  source               ReviewSource
+  external_id          String?         @db.VarChar(200)
+  reviewer_name        String?         @db.VarChar(200)
+  rating               Float?
+  review_text          String?         @db.Text
+  review_date          DateTime?       @db.Date
+  sentiment            SentimentLabel?
+  sentiment_score      Float?
+  complaint_categories String[]
+  raw_metadata         Json?
+  scraped_at           DateTime        @default(now())
+  processed_at         DateTime?
+  is_flagged           Boolean         @default(false)
+
+  @@index([external_id])
+  @@map("reviews")
+}
+
+model AnalyticsCache {
+  id               String     @id @default(uuid())
+  restaurant_id    String
+  restaurant       Restaurant @relation(fields: [restaurant_id], references: [id], onDelete: Cascade)
+  period           String     @db.VarChar(20)
+  avg_rating       Float?
+  review_count     Int        @default(0)
+  sentiment_counts Json?
+  category_counts  Json?
+  rating_trend     Json?
+  llm_insights     String?    @db.Text
+  llm_generated_at DateTime?
+  computed_at      DateTime   @default(now()) @updatedAt
+
+  @@map("analytics_cache")
+}
