@@ -66,18 +66,7 @@ npm run dev
 
 ---
 
-### Seed Demo Data
 
-Once the backend is running, seed 5 First Fiddle outlets with sample reviews:
-
-```bash
-# Via curl
-curl -X POST http://localhost:8000/api/seed
-
-# Or click "Seed Demo Data" button in the dashboard header
-```
-
----
 
 ### Workflow
 
@@ -93,7 +82,7 @@ curl -X POST http://localhost:8000/api/seed
 
 | Variable | Description |
 |---|---|
-| `DATABASE_URL` | PostgreSQL async connection string |
+| `DATABASE_URL` | PostgreSQL connection string |
 | `GEMINI_API_KEY` | Google Gemini API key (get from Google AI Studio) |
 | `GEMINI_MODEL` | Model to use (default: `gemini-2.0-flash`) |
 | `SCRAPE_DELAY` | Seconds between scraper requests (default: 2) |
@@ -134,4 +123,4 @@ browser → React (Vite) → FastAPI → PostgreSQL
 | GET | `/api/analytics/comparison/outlets` | All outlets compared |
 | POST | `/api/insights/{id}` | Generate AI insights |
 | GET | `/api/insights/{id}` | Get cached insights |
-| POST | `/api/seed` | Seed demo data (DEBUG only) |
+

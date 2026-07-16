@@ -13,11 +13,11 @@ class Settings(BaseSettings):
     APP_NAME: str = "First Fiddle Reputation Platform"
     APP_VERSION: str = "1.0.0"
     DEBUG: bool = True
-    ALLOWED_ORIGINS: str = "http://localhost:5173,http://localhost:3000"
+    ALLOWED_ORIGINS: str = "http://localhost:5173"
 
     # Database
-    DATABASE_URL: str = "postgresql+asyncpg://postgres:password@localhost:5432/firstfiddle"
-    DATABASE_URL_SYNC: str = "postgresql://postgres:password@localhost:5432/firstfiddle"
+    DATABASE_URL: str = "postgresql://postgres:password@localhost:5432/firstfiddle"
+    DATABASE_URL_ASYNC =""
 
 
     # Gemini LLM
@@ -35,6 +35,11 @@ class Settings(BaseSettings):
     @property
     def allowed_origins_list(self) -> List[str]:
         return [o.strip() for o in self.ALLOWED_ORIGINS.split(",")]
+
+    @property
+    def allowed_origins_list(self) -> List[str]:
+        return [o.strip() for o in self.ALLOWED_ORIGINS.split(",")]
+
 
     model_config = SettingsConfigDict(
         env_file=".env",

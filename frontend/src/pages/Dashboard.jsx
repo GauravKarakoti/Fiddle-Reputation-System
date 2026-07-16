@@ -9,7 +9,7 @@ import ReviewFeed from '../components/ReviewFeed'
 import AIInsightsPanel from '../components/AIInsightsPanel'
 import {
   getOverview, getRatingTrend, getOutletComparison, getRestaurants, getReviews
-} from '../api/client'
+} from '../api/client' 
 
 function StatCard({ icon: Icon, label, value, sub, color = 'brand' }) {
   const colorMap = {
@@ -52,7 +52,7 @@ export default function Dashboard() {
       ])
       setOverview(ov)
       setComparison(comp.outlets || [])
-      setRestaurants(rests.items || [])
+      setRestaurants(rests.items || []) 
 
       // Load trend for first outlet if available
       if (rests.items?.length) {
@@ -93,7 +93,7 @@ export default function Dashboard() {
     : 0
 
   return (
-    <div className="flex flex-col h-full">
+    <div className="flex flex-col h-full"> 
       <Header
         title="Reputation Dashboard"
         subtitle="First Fiddle Restaurants — Live Review Intelligence"
@@ -111,7 +111,7 @@ export default function Dashboard() {
           <StatCard
             icon={MessageCircle} label="Total Reviews"
             value={loading ? '…' : overview?.total_reviews?.toLocaleString()}
-            sub="All platforms combined" color="purple"
+            sub="All platforms combined" color="purple" 
           />
           <StatCard
             icon={Star} label="Avg Rating"
@@ -139,7 +139,7 @@ export default function Dashboard() {
                 <option key={r.id} value={r.id}>{r.name}</option>
               ))}
             </select>
-          </div>
+          </div> 
         )}
 
         {/* Main grid */}

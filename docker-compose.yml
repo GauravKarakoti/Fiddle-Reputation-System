@@ -40,8 +40,7 @@ services:
     env_file:
       - ./backend/.env
     environment:
-      # DATABASE_URL: postgresql+asyncpg://postgres:password@postgres:5432/firstfiddle
-      # DATABASE_URL_SYNC: postgresql://postgres:password@postgres:5432/firstfiddle
+      # DATABASE_URL: postgresql://postgres:password@postgres:5432/firstfiddle
     
     ports:
       - "8000:8000"

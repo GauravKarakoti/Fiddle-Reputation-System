@@ -177,7 +177,7 @@ export default function Outlets() {
         ) : outlets.length === 0 ? (
           <div className="flex flex-col items-center justify-center h-64 text-slate-500 gap-3">
             <Building2 size={40} className="opacity-20" />
-            <p>No outlets yet. Click "Seed Demo Data" in the header to get started!</p>
+            <p>No outlets yet.</p>
           </div>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">

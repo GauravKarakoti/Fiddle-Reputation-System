@@ -33,8 +33,8 @@ export default function Sidebar() {
         </div>
         {!collapsed && (
           <div>
-            <p className="font-display font-bold text-sm text-slate-100 leading-tight">First Fiddle</p>
-            <p className="text-xs text-slate-500">Reputation Hub</p>
+            <p className="font-display font-bold text-m text-slate-100 leading-tight">First Fiddle</p>
+            <p className="text-xs text-slate-500">Reputation System</p>
           </div>
         )}
       </div>

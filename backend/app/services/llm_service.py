@@ -6,6 +6,7 @@ Prompt engineering ensures structured, actionable output.
 Results are cached in the analytics_cache table for 24 hours.
 """
 import logging
+import asyncio
 import uuid
 from datetime import datetime, timedelta
 from typing import Optional
@@ -155,7 +156,6 @@ async def _aggregate_review_data(restaurant_id: uuid.UUID, db: Prisma) -> dict:
 
 
 async def _call_gemini(data: dict) -> str:
-    """Send aggregated data to Gemini and return markdown response."""
     import google.generativeai as genai
 
     if not settings.GEMINI_API_KEY:
@@ -166,6 +166,7 @@ async def _call_gemini(data: dict) -> str:
         model_name=settings.GEMINI_MODEL,
         system_instruction=SYSTEM_PROMPT,
     )
+
 
     # Build structured data prompt
     category_text = "\n".join(
@@ -203,8 +204,7 @@ async def _call_gemini(data: dict) -> str:
 ---
 Based on this data, provide your operational recommendations for the restaurant manager.
 """
-
-    response = model.generate_content(prompt)
+    response = await asyncio.to_thread(model.generate_content, prompt)
     return response.text
 
 

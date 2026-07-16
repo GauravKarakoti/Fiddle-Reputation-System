@@ -50,7 +50,7 @@ export default function AIInsightsPanel({ restaurantId, initialInsights = null }
               {loading ? <Loader2 size={12} className="animate-spin" /> : <RefreshCw size={12} />}
               Refresh
             </button>
-          )}
+          )} 
           {!insights && !loading && (
             <button
               onClick={() => handleGenerate(false)}
@@ -60,7 +60,7 @@ export default function AIInsightsPanel({ restaurantId, initialInsights = null }
               <Sparkles size={14} />
               Generate Insights
             </button>
-          )}
+          )} 
         </div>
       </div>
 
