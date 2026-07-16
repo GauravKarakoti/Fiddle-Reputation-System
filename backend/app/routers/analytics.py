@@ -32,14 +32,8 @@ async def get_overview(db: Prisma = Depends(get_db)):
     """
     total_outlets = await db.restaurant.count(where={"is_active": True})
 
-    reviews = await db.review.find_many(
-        select={
-            "rating": True,
-            "sentiment": True,
-            "source": True,
-            "complaint_categories": True
-        }
-    )
+    # Removed the 'select' argument; fetching full models
+    reviews = await db.review.find_many()
 
     total_reviews = len(reviews)
     ratings = [r.rating for r in reviews if r.rating is not None]
@@ -85,15 +79,8 @@ async def get_outlet_analytics(
     if cutoff:
         where["scraped_at"] = {"gte": cutoff}
 
-    reviews = await db.review.find_many(
-        where=where,
-        select={
-            "rating": True,
-            "sentiment": True,
-            "source": True,
-            "complaint_categories": True
-        }
-    )
+    # Removed the 'select' argument; fetching full models based on 'where' filter
+    reviews = await db.review.find_many(where=where)
 
     ratings = [r.rating for r in reviews if r.rating is not None]
     sentiment_counts = {"positive": 0, "neutral": 0, "negative": 0}
@@ -139,10 +126,8 @@ async def get_rating_trend(
     if cutoff:
         where["scraped_at"] = {"gte": cutoff}
 
-    reviews = await db.review.find_many(
-        where=where,
-        select={"review_date": True, "rating": True}
-    )
+    # Removed the 'select' argument; fetching full models based on 'where' filter
+    reviews = await db.review.find_many(where=where)
 
     weekly = {}
     for r in reviews:
@@ -174,6 +159,7 @@ async def get_outlet_comparison(db: Prisma = Depends(get_db)):
     avg rating, review count, and sentiment breakdown per outlet.
     Used to power outlet comparison bar chart.
     """
+    # The 'include' argument is fully supported in Python Prisma, so this stays untouched.
     outlets = await db.restaurant.find_many(
         where={"is_active": True},
         include={"reviews": True}

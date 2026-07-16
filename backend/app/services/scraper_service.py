@@ -126,13 +126,12 @@ async def _save_reviews(
     if not raw_reviews:
         return 0
 
-    # Fetch existing external_ids to avoid duplicates
+    # Fetch existing external_ids to avoid duplicates (removed unsupported 'select')
     reviews_existing = await db.review.find_many(
         where={
             "restaurant_id": str(restaurant_id),
             "external_id": {"not": None}
-        },
-        select={"external_id": True}
+        }
     )
     existing_ids = {r.external_id for r in reviews_existing if r.external_id}
 
