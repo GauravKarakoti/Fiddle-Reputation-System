@@ -17,7 +17,6 @@ class Settings(BaseSettings):
 
     # Database
     DATABASE_URL: str = "postgresql://postgres:password@localhost:5432/firstfiddle"
-    DATABASE_URL_ASYNC =""
 
 
     # Gemini LLM
@@ -31,10 +30,6 @@ class Settings(BaseSettings):
     # NLP Models
     SENTIMENT_MODEL: str = "cardiffnlp/twitter-roberta-base-sentiment-latest"
     USE_GPU: bool = False
-
-    @property
-    def allowed_origins_list(self) -> List[str]:
-        return [o.strip() for o in self.ALLOWED_ORIGINS.split(",")]
 
     @property
     def allowed_origins_list(self) -> List[str]:
