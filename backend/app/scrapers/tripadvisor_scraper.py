@@ -39,7 +39,7 @@ class TripAdvisorScraper(BaseScraper):
 
         async with async_playwright() as p:
             browser = await p.chromium.launch(
-                headless=True,
+                headless=False,
                 args=[
                     "--no-sandbox",
                     "--disable-blink-features=AutomationControlled",

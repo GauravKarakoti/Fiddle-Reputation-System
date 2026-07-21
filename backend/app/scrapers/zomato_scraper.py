@@ -41,7 +41,7 @@ class ZomatoScraper(BaseScraper):
 
         async with async_playwright() as p:
             browser = await p.chromium.launch(
-                headless=True,
+                headless=False,
                 channel="chrome",
                 args=["--no-sandbox", "--disable-blink-features=AutomationControlled"]
             )

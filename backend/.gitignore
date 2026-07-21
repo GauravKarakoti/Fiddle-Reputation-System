@@ -3,4 +3,4 @@ generated
 .env
 __pycache__
 venv
-
+debug

@@ -44,7 +44,7 @@ class GoogleScraper(BaseScraper):
 
         async with async_playwright() as p:
             browser = await p.chromium.launch(
-                headless=True,
+                headless=False,
                 channel="chrome",
                 args=["--no-sandbox", "--disable-dev-shm-usage"]
             )
