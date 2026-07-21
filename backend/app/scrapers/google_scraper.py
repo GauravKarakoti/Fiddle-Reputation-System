@@ -1,25 +1,16 @@
 """
 Google Reviews scraper using Playwright for dynamic content.
 Google Reviews are loaded via JavaScript, so a headless browser is required.
-
-Usage:
-    scraper = GoogleScraper()
-    reviews = await scraper.scrape(
-        url="https://www.google.com/maps/place/...",
-        max_reviews=50
-    )
-
-Note: Google does not provide an official reviews API for free.
-This scraper navigates to the Maps page and extracts visible reviews.
-For production use at scale, consider the Google Places API (paid).
 """
 import asyncio
 import logging
 import re
+import os
 from datetime import date
 from typing import Optional
 
 from playwright.async_api import async_playwright, Page, BrowserContext
+from playwright_stealth import Stealth  # <-- Updated import for v2.0+
 
 from app.scrapers.base_scraper import BaseScraper, RawReview
 
@@ -30,39 +21,40 @@ class GoogleScraper(BaseScraper):
     """Scrapes customer reviews from Google Maps using Playwright."""
 
     async def scrape(self, url: str, max_reviews: int = 50) -> list[RawReview]:
-        """
-        Navigate to a Google Maps place URL and extract reviews.
-
-        Args:
-            url: Full Google Maps place URL with reviews tab
-            max_reviews: Maximum number of reviews to collect
-
-        Returns:
-            List of RawReview objects
-        """
+        """Navigate to a Google Maps place URL and extract reviews."""
         reviews = []
 
         async with async_playwright() as p:
-            browser = await p.chromium.launch(
-                headless=True,
+            # Create a dedicated directory to store browser cookies/state
+            user_data_dir = os.path.join(os.getcwd(), "playwright_chrome_profile")
+            
+            # Launch a persistent context instead of a fresh one every time
+            context = await p.chromium.launch_persistent_context(
+                user_data_dir,
+                headless=False,
                 channel="chrome",
-                args=["--no-sandbox", "--disable-dev-shm-usage"]
-            )
-            context: BrowserContext = await browser.new_context(
-                user_agent=self.headers["User-Agent"],
+                args=[
+                    "--no-sandbox", 
+                    "--disable-dev-shm-usage",
+                    "--disable-blink-features=AutomationControlled"
+                ],
                 locale="en-US",
                 viewport={"width": 1280, "height": 800},
             )
-            page: Page = await context.new_page()
+            
+            # A persistent context automatically spawns a first page
+            page: Page = context.pages[0] if context.pages else await context.new_page()
 
-            await page.add_init_script(
-                "Object.defineProperty(navigator, 'webdriver', {get: () => undefined})"
-            )
-
+            # Apply stealth to the specific page
+            stealth = Stealth()
+            await stealth.apply_stealth_async(page)
+            
             try:
                 logger.info(f"[Google] Navigating to: {url}")
                 for attempt in range(2):
                     try:
+                        if "&hl=en" not in url:
+                            url += "&hl=en"
                         await page.goto(url, wait_until="domcontentloaded", timeout=45000)
                         break
                     except Exception as e:
@@ -71,38 +63,74 @@ class GoogleScraper(BaseScraper):
                         logger.warning(f"Retry after goto failure: {e}")
                         await asyncio.sleep(2)
 
-                # Click on the Reviews tab if visible
                 try:
-                    reviews_tab = page.locator('button[aria-label*="Reviews"]').first
-                    await reviews_tab.click(timeout=5000)
-                    await asyncio.sleep(2)
+                    await page.wait_for_selector('h1', timeout=15000)
                 except Exception:
-                    logger.debug("[Google] No reviews tab button found, continuing")
+                    logger.debug("[Google] Main header didn't load in time, but continuing.")
 
-                # Scroll to load more reviews
-                review_panel = page.locator('div[role="feed"]').first
+                # Attempt to dismiss common Google popups first
+                try:
+                    popup_button = page.locator('button:has-text("Accept all"), button:has-text("No thanks"), button:has-text("Reject all")').first
+                    if await popup_button.is_visible(timeout=3000):
+                        await popup_button.click()
+                        await asyncio.sleep(1)
+                except Exception:
+                    logger.debug("[Google] No blocking popups found, continuing.")
+
+                # Click the Reviews tab using a broad locator WITH fail-fast logic
+                try:
+                    reviews_tab = page.locator(
+                        'button:has-text("Reviews"), '
+                        'button[aria-label*="Reviews"], '
+                        'div[role="tab"]:has-text("Reviews")'
+                    ).first
+                    
+                    if await reviews_tab.is_visible(timeout=8000):
+                        await reviews_tab.click()
+                        await asyncio.sleep(2)
+                    else:
+                        logger.info("[Google] No 'Reviews' tab found (Degraded UI or 0 reviews). Exiting cleanly.")
+                        return reviews
+                        
+                except Exception as e:
+                    logger.error(f"[Google] Failed to interact with Reviews tab: {e}")
+                    return reviews
+
+                # ----- PROCEED TO SCROLLING ONLY IF TAB WAS CLICKED -----
+                
+                # Wait for the first review card to appear in the DOM
+                try:
+                    await page.wait_for_selector('div[data-review-id]', timeout=15000)
+                except Exception:
+                    logger.warning("[Google] Reviews tab clicked, but no review cards loaded. Exiting.")
+                    return reviews
+
                 scroll_attempts = 0
                 max_scrolls = max_reviews // 5 + 5
 
                 while scroll_attempts < max_scrolls:
-                    await review_panel.evaluate(
-                        "el => el.scrollTo(0, el.scrollHeight)"
-                    )
+                    # Dynamically target the last review card and scroll it into view
+                    review_cards_locator = page.locator('div[data-review-id]')
+                    current_count = await review_cards_locator.count()
+                    
+                    if current_count > 0:
+                        last_card = review_cards_locator.nth(current_count - 1)
+                        await last_card.scroll_into_view_if_needed()
+                    
                     await asyncio.sleep(1.5)
+                    
                     # Expand "More" buttons
                     more_buttons = page.locator('button[aria-label="See more"]')
-                    for btn in await more_buttons.all():
+                    button_count = await more_buttons.count()
+                    for i in range(button_count):
                         try:
-                            await btn.click(timeout=1000)
+                            await more_buttons.nth(i).click(timeout=1000)
                         except Exception:
                             pass
                     scroll_attempts += 1
 
                 # Extract review cards
-                review_cards = await page.locator(
-                    'div[data-review-id]'
-                ).all()
-
+                review_cards = await page.locator('div[data-review-id]').all()
                 logger.info(f"[Google] Found {len(review_cards)} review cards")
 
                 for card in review_cards[:max_reviews]:
@@ -117,7 +145,6 @@ class GoogleScraper(BaseScraper):
                 logger.error(f"[Google] Scraping failed: {e}")
             finally:
                 await context.close()
-                await browser.close()
 
         logger.info(f"[Google] Collected {len(reviews)} reviews")
         return reviews

@@ -8,7 +8,7 @@ import uuid
 from datetime import datetime
 from typing import Optional
 
-from prisma import Prisma
+from prisma import Prisma, Json
 
 from app.scrapers.base_scraper import RawReview
 from app.scrapers.google_scraper import GoogleScraper
@@ -161,14 +161,14 @@ async def _save_reviews(
 
             await transaction.review.create(
                 data={
-                    "restaurant_id": str(restaurant_id),
+                    "restaurant_id": str(restaurant_id),  # Pass the FK directly as a string
                     "source": raw.source,
                     "external_id": raw.external_id,
                     "reviewer_name": raw.reviewer_name,
                     "rating": raw.rating,
                     "review_text": raw.review_text,
                     "review_date": review_datetime,
-                    "raw_metadata": raw.raw_metadata,
+                    "raw_metadata": Json(raw.raw_metadata if raw.raw_metadata is not None else {}), # Wrap with Prisma's Json class
                     "scraped_at": datetime.utcnow(),
                 }
             )

@@ -23,21 +23,15 @@ class ZomatoScraper(BaseScraper):
     ZOMATO_BASE = "https://www.zomato.com"
 
     async def scrape(self, url: str, max_reviews: int = 50) -> list[RawReview]:
-        """
-        Navigate to a Zomato restaurant URL and extract reviews.
-
-        Args:
-            url: Zomato restaurant URL (e.g., https://www.zomato.com/ncr/restaurant-name/reviews)
-            max_reviews: Maximum reviews to collect
-
-        Returns:
-            List of RawReview objects
-        """
+        """Navigate to a Zomato restaurant URL and extract paginated reviews via UI clicks."""
         reviews = []
 
-        # Ensure URL points to reviews section
         if "/reviews" not in url:
             url = url.rstrip("/") + "/reviews"
+
+        base_url = url.split("?")[0]
+        # Force sort by newest on the initial load
+        start_url = f"{base_url}?sort=dd&filter=reviews-dining"
 
         async with async_playwright() as p:
             browser = await p.chromium.launch(
@@ -48,83 +42,97 @@ class ZomatoScraper(BaseScraper):
             context = await browser.new_context(
                 user_agent=self.headers["User-Agent"],
                 locale="en-IN",
-                extra_http_headers={
-                    "Accept-Language": "en-IN,en;q=0.9",
-                },
+                extra_http_headers={"Accept-Language": "en-IN,en;q=0.9"},
             )
-            page: Page = await context.new_page()
+            page = await context.new_page()
 
-            # Mask webdriver detection
             await page.add_init_script(
                 "Object.defineProperty(navigator, 'webdriver', {get: () => undefined})"
             )
 
             try:
-                logger.info(f"[Zomato] Navigating to: {url}")
-                for attempt in range(2):
-                    try:
-                        await page.goto(url, wait_until="domcontentloaded", timeout=45000)
-                        break
-                    except Exception as e:
-                        if attempt == 1:
-                            raise
-                        logger.warning(f"Retry after goto failure: {e}")
-                        await asyncio.sleep(3)
+                logger.info(f"[Zomato] Initial navigation to: {start_url}")
+                await page.goto(start_url, wait_until="domcontentloaded", timeout=45000)
+                await asyncio.sleep(4) # Let React hydrate
+
+                current_page = 1
                 
-                # Scroll and load more reviews
-                prev_count = 0
-                scroll_rounds = 0
-                max_rounds = max_reviews // 5 + 10
-
-                while scroll_rounds < max_rounds:
-                    await page.evaluate("window.scrollTo(0, document.body.scrollHeight)")
-                    await asyncio.sleep(2)
-
-                    # Click "Load more" / "Show more reviews" button
-                    try:
-                        load_more = page.locator(
-                            'a:has-text("Load more reviews"), '
-                            'button:has-text("Load more"), '
-                            'a:has-text("More reviews")'
-                        ).first
-                        if await load_more.is_visible(timeout=2000):
-                            await load_more.click()
-                            await asyncio.sleep(2)
-                    except Exception:
-                        pass
-
-                    current_cards = await page.locator(
-                        'div[class*="sc-"][class*="review"]'
-                    ).count()
-
-                    if current_cards >= max_reviews or current_cards == prev_count:
+                while len(reviews) < max_reviews:
+                    current_anchors = await page.locator('div:has(> p.time-stamp)').count()
+                    if current_anchors == 0:
+                        logger.info(f"[Zomato] No reviews found on page {current_page}.")
                         break
 
-                    prev_count = current_cards
-                    scroll_rounds += 1
+                    logger.info(f"[Zomato] Extracting {current_anchors} reviews from page {current_page}")
 
-                # Extract review cards using multiple selector strategies
-                review_cards = await page.locator(
-                    'div[class*="ReviewCard"], '
-                    'div[data-testid="review-card"], '
-                    'section[class*="ReviewCard"]'
-                ).all()
+                    # Extract reviews via JS evaluation (Same as before)
+                    extracted_data = await page.evaluate('''() => {
+                        const results = [];
+                        const anchors = Array.from(document.querySelectorAll('div > p.time-stamp')).map(p => p.parentElement);
+                        for (const anchor of anchors) {
+                            const dateStr = anchor.querySelector('p.time-stamp')?.innerText || "";
+                            let rating = null;
+                            const match = anchor.innerText.match(/(\\d+(?:\\.\\d+)?)/);
+                            if (match) rating = parseFloat(match[1]);
+                            
+                            let name = "";
+                            let prev = anchor.previousElementSibling;
+                            while (prev && prev.tagName !== 'SECTION') prev = prev.previousElementSibling;
+                            if (prev) {
+                                const nameEl = prev.querySelector('p');
+                                if (nameEl) name = nameEl.innerText;
+                            }
 
-                # Fallback: try generic review containers
-                if not review_cards:
-                    review_cards = await page.locator(
-                        'div:has(> p[class*="review-text"])'
-                    ).all()
+                            let text = "";
+                            let pSibling = anchor.nextElementSibling;
+                            while (pSibling && pSibling.tagName !== 'SECTION') {
+                                if (pSibling.tagName === 'P') { text = pSibling.innerText; break; }
+                                pSibling = pSibling.nextElementSibling;
+                            }
+                            results.push({ name, rating, text, dateStr });
+                        }
+                        return results;
+                    }''')
 
-                logger.info(f"[Zomato] Found {len(review_cards)} review containers")
+                    import hashlib
+                    new_reviews_this_page = 0
+                    
+                    for data in extracted_data:
+                        if len(reviews) >= max_reviews:
+                            break
+                        if not data['text'] and not data['rating']:
+                            continue
 
-                for card in review_cards[:max_reviews]:
-                    try:
-                        review = await self._parse_review_card(card)
-                        if review:
-                            reviews.append(review)
-                    except Exception as e:
-                        logger.warning(f"[Zomato] Card parse error: {e}")
+                        content = f"{data['name']}{data['text']}{data['dateStr']}"
+                        ext_id = "z_" + hashlib.md5(content.encode()).hexdigest()[:12]
+
+                        reviews.append(RawReview(
+                            source="zomato",
+                            external_id=ext_id,
+                            reviewer_name=data['name'],
+                            rating=self._normalize_rating(data['rating']),
+                            review_text=data['text'],
+                            review_date=self._parse_date(data['dateStr']),
+                            raw_metadata={"raw_date_str": data['dateStr']},
+                        ))
+                        new_reviews_this_page += 1
+
+                    if len(reviews) >= max_reviews or new_reviews_this_page == 0:
+                        break
+
+                    next_page_num = current_page + 1
+                    next_page_link = page.locator(f'a[href*="page={next_page_num}"]')
+                    
+                    if await next_page_link.count() > 0:
+                        logger.info(f"[Zomato] Clicking pagination for page {next_page_num}")
+                        
+                        # Use .evaluate to force the click via JavaScript
+                        await next_page_link.first.evaluate("el => el.click()")
+                        await asyncio.sleep(4) # Wait for React to fetch and render the new data
+                        current_page += 1
+                    else:
+                        logger.info(f"[Zomato] No pagination link found for page {next_page_num}. Ending.")
+                        break
 
             except Exception as e:
                 logger.error(f"[Zomato] Scraping failed: {e}")
@@ -132,37 +140,37 @@ class ZomatoScraper(BaseScraper):
                 await context.close()
                 await browser.close()
 
-        logger.info(f"[Zomato] Collected {len(reviews)} reviews")
+        logger.info(f"[Zomato] Collected {len(reviews)} total reviews")
         return reviews
 
     async def _parse_review_card(self, card) -> Optional[RawReview]:
-        """Parse a single Zomato review card."""
+        """Parse a single Zomato review card using heuristic DOM traversal."""
         try:
-            # Rating — Zomato uses colored badge with number
-            rating_el = card.locator('[class*="ui-type-body-regular-b"]').first
-            rating_text = await rating_el.inner_text() if await rating_el.count() else None
-            rating = None
-            if rating_text:
-                match = re.search(r"(\d+(?:\.\d+)?)", rating_text)
-                if match:
-                    val = float(match.group(1))
-                    # Zomato uses 1-5 scale
-                    rating = self._normalize_rating(val)
-
-            # Review text
-            text_el = card.locator('p[class*="reviewText"], span[class*="reviewText"]').first
-            if not await text_el.count():
-                text_el = card.locator("p").first
-            review_text = await text_el.inner_text() if await text_el.count() else None
-
-            # Reviewer name
-            name_el = card.locator('p[class*="sc-1hez2tp"], a[class*="username"]').first
+            # 1. Reviewer Name: Usually the inner text of the user profile link
+            name_el = card.locator('a[href*="/users/"]').last
             reviewer_name = await name_el.inner_text() if await name_el.count() else None
 
-            # Date
-            date_el = card.locator('span[class*="time-stamp"], time').first
-            date_str = await date_el.inner_text() if await date_el.count() else None
+            # 2. Rating: Search all text inside the card for a standalone 1.0 - 5.0 number
+            rating = None
+            text_blocks = await card.locator('div').all_inner_texts()
+            for text in text_blocks:
+                match = re.search(r"^([1-5](?:\.\d)?)$", text.strip())
+                if match:
+                    rating = float(match.group(1))
+                    break
+
+            # 3. Date: Look for standard time strings
+            date_str = None
+            time_el = card.locator('time, span:has-text("ago"), span:has-text("yesterday"), span:has-text("202")').first
+            if await time_el.count():
+                date_str = await time_el.inner_text()
             review_date = self._parse_date(date_str)
+
+            # 4. Review Text: Extract all paragraphs and assume the longest one is the review
+            review_text = None
+            paragraphs = await card.locator('p').all_inner_texts()
+            if paragraphs:
+                review_text = max(paragraphs, key=len)
 
             if not review_text and not rating:
                 return None
