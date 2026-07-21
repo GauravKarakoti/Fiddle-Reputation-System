@@ -4,3 +4,4 @@ generated
 __pycache__
 venv
 debug
+playwright_chrome_profile

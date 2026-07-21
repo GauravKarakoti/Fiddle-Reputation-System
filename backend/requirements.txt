@@ -14,6 +14,7 @@ python-dotenv==1.0.1
 httpx==0.27.0
 requests==2.31.0
 playwright==1.44.0
+playwright-stealth
 beautifulsoup4==4.12.3
 lxml==5.2.1
 fake-useragent==1.5.1
