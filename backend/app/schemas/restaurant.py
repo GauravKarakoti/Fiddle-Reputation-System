@@ -10,9 +10,12 @@ class RestaurantBase(BaseModel):
     branch_code: str
     city: str
     address: Optional[str] = None
-    google_place_id: Optional[str] = None
+    # Google is the primary/required review source for every outlet.
+    google_place_id: str
+    # These are optional — not every outlet is listed on all three.
     zomato_url: Optional[str] = None
     tripadvisor_url: Optional[str] = None
+    swiggy_url: Optional[str] = None
     phone: Optional[str] = None
     manager_name: Optional[str] = None
 
@@ -28,6 +31,7 @@ class RestaurantUpdate(BaseModel):
     google_place_id: Optional[str] = None
     zomato_url: Optional[str] = None
     tripadvisor_url: Optional[str] = None
+    swiggy_url: Optional[str] = None
     phone: Optional[str] = None
     manager_name: Optional[str] = None
     is_active: Optional[bool] = None

@@ -1,7 +1,7 @@
 """Pydantic schemas for Review endpoints."""
 import uuid
 from datetime import datetime, date
-from typing import Optional, List
+from typing import Optional, List, Literal
 from pydantic import BaseModel
 # pyrefly: ignore [missing-import]
 from app.models.reviews import ReviewSource, SentimentLabel
@@ -52,5 +52,8 @@ class ScrapeJobStatus(BaseModel):
 
 
 class ScrapeRequest(BaseModel):
-    platform: Optional[str] = None  # None = all platforms
+    # None = scrape every platform configured for the outlet (google is always
+    # attempted; zomato/tripadvisor/swiggy are included automatically if the
+    # outlet has a URL saved for them).
+    platform: Optional[Literal["google", "zomato", "tripadvisor", "swiggy"]] = None
     max_reviews: Optional[int] = 50

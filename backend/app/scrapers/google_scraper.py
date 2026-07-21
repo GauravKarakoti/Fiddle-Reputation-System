@@ -45,6 +45,7 @@ class GoogleScraper(BaseScraper):
         async with async_playwright() as p:
             browser = await p.chromium.launch(
                 headless=True,
+                channel="chrome",
                 args=["--no-sandbox", "--disable-dev-shm-usage"]
             )
             context: BrowserContext = await browser.new_context(
@@ -54,10 +55,21 @@ class GoogleScraper(BaseScraper):
             )
             page: Page = await context.new_page()
 
+            await page.add_init_script(
+                "Object.defineProperty(navigator, 'webdriver', {get: () => undefined})"
+            )
+
             try:
                 logger.info(f"[Google] Navigating to: {url}")
-                await page.goto(url, wait_until="networkidle", timeout=30000)
-                await asyncio.sleep(2)
+                for attempt in range(2):
+                    try:
+                        await page.goto(url, wait_until="domcontentloaded", timeout=45000)
+                        break
+                    except Exception as e:
+                        if attempt == 1:
+                            raise
+                        logger.warning(f"Retry after goto failure: {e}")
+                        await asyncio.sleep(2)
 
                 # Click on the Reviews tab if visible
                 try:

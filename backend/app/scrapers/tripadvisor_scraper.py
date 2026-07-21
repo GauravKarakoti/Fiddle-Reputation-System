@@ -79,6 +79,35 @@ class TripAdvisorScraper(BaseScraper):
                     except Exception:
                         pass
 
+                    # Wait for review cards to actually hydrate before reading content —
+                    # domcontentloaded only guarantees the initial HTML arrived, not
+                    # that React has rendered the review list yet.
+                    try:
+                        await page.wait_for_selector(
+                            'div[data-automation="reviewCard"]', timeout=20000
+                        )
+                    except Exception:
+                        logger.warning(
+                            "[TripAdvisor] Review cards never appeared after navigation "
+                            "(page may be under heavy load, blocked, or showing a "
+                            "consent/interstitial screen) — dumping debug artifacts"
+                        )
+                        import os
+                        os.makedirs("debug", exist_ok=True)
+                        ts = int(asyncio.get_event_loop().time())
+                        try:
+                            await page.screenshot(
+                                path=f"debug/tripadvisor_{ts}.png", full_page=True
+                            )
+                            debug_html = await page.content()
+                            with open(f"debug/tripadvisor_{ts}.html", "w", encoding="utf-8") as f:
+                                f.write(debug_html)
+                            logger.warning(
+                                f"[TripAdvisor] Saved debug/tripadvisor_{ts}.png and .html"
+                            )
+                        except Exception as dump_err:
+                            logger.warning(f"[TripAdvisor] Debug dump failed: {dump_err}")
+
                     # Get page HTML for BS4 parsing
                     content = await page.content()
                     page_reviews = self._parse_html(content)
@@ -125,39 +154,57 @@ class TripAdvisorScraper(BaseScraper):
 
         for card in cards:
             try:
-                # Rating via aria-label on svg or data-rating
+                # Overall rating — the FIRST bubbleRatingImage svg in document order
+                # is the overall star rating. Four more of these appear later in the
+                # card for the Value/Service/Food/Atmosphere sub-scores, so anchoring
+                # on the first occurrence is what keeps us on the right one.
+                # The value itself is in a <title> child ("1 of 5 bubbles"), not an
+                # aria-label on the svg.
                 rating = None
-                rating_el = (
-                    card.find("svg", attrs={"aria-label": True})
-                    or card.find(attrs={"data-rating": True})
-                )
-                if rating_el:
-                    label = rating_el.get("aria-label", "") or str(rating_el.get("data-rating", ""))
-                    match = re.search(r"(\d+(?:\.\d+)?)", label)
-                    if match:
-                        rating = self._normalize_rating(float(match.group(1)))
+                rating_svg = card.find("svg", attrs={"data-automation": "bubbleRatingImage"})
+                if rating_svg:
+                    title_el = rating_svg.find("title")
+                    if title_el:
+                        match = re.search(r"(\d+(?:\.\d+)?)", title_el.get_text())
+                        if match:
+                            rating = self._normalize_rating(float(match.group(1)))
 
-                # Review text
-                text_el = (
-                    card.find("span", attrs={"data-automation": "reviewText"})
-                    or card.find("p", class_=re.compile(r"partial_entry|review-text"))
-                    or card.find("q")
-                )
-                review_text = text_el.get_text(strip=True) if text_el else None
+                # Review title (optional) — prepended to the body text for context.
+                title_text = None
+                title_h3 = card.find(attrs={"data-test-target": "review-title"})
+                if title_h3:
+                    title_link = title_h3.find("a")
+                    title_text = title_link.get_text(strip=True) if title_link else title_h3.get_text(strip=True)
 
-                # Reviewer name
-                name_el = (
-                    card.find("a", attrs={"data-automation": "profileLink"})
-                    or card.find(class_=re.compile(r"username|memberOverlay"))
+                # Review body — lives in the data-test-target="review-body" container.
+                # Strip the "Read more" toggle button out before extracting text
+                # (the full text is present in the DOM even when CSS line-clamps it).
+                body_el = card.find(attrs={"data-test-target": "review-body"})
+                body_text = None
+                if body_el:
+                    for btn in body_el.find_all("button"):
+                        btn.decompose()
+                    body_text = body_el.get_text(" ", strip=True)
+
+                review_text = (
+                    f"{title_text}. {body_text}" if title_text and body_text
+                    else body_text or title_text
                 )
+
+                # Reviewer name — TripAdvisor member profile URLs always start with
+                # "/Profile/"; this is the most stable anchor across UI revisions.
+                name_el = card.find("a", href=re.compile(r"^/Profile/"))
                 reviewer_name = name_el.get_text(strip=True) if name_el else None
 
-                # Date
-                date_el = (
-                    card.find("span", attrs={"data-automation": "reviewDate"})
-                    or card.find("span", class_=re.compile(r"ratingDate|date_visited"))
-                )
-                date_str = date_el.get_text(strip=True) if date_el else None
+                # Date — the actual submission date is rendered as two separate text
+                # nodes: "Written " followed by "2 July 2026", appearing after the
+                # sub-rating grid. (Not the earlier "Jul 2026 • Family" line, which
+                # is the visit date/trip type, not the post date.)
+                date_str = None
+                written_label = card.find(string=re.compile(r"^\s*Written\s*$", re.I))
+                if written_label and written_label.parent:
+                    full_text = written_label.parent.get_text(" ", strip=True)
+                    date_str = re.sub(r"^Written\s*", "", full_text, flags=re.I).strip()
                 review_date = self._parse_date(date_str)
 
                 if not review_text and not rating:

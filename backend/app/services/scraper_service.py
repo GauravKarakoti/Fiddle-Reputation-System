@@ -14,6 +14,7 @@ from app.scrapers.base_scraper import RawReview
 from app.scrapers.google_scraper import GoogleScraper
 from app.scrapers.zomato_scraper import ZomatoScraper
 from app.scrapers.tripadvisor_scraper import TripAdvisorScraper
+from app.scrapers.swiggy_scraper import SwiggyScraper
 
 logger = logging.getLogger(__name__)
 
@@ -85,17 +86,27 @@ async def _run_scrape_job(
         if (platform is None or platform == "tripadvisor") and restaurant.tripadvisor_url:
             tasks.append(("tripadvisor", TripAdvisorScraper(), restaurant.tripadvisor_url))
 
+        if (platform is None or platform == "swiggy") and restaurant.swiggy_url:
+            tasks.append(("swiggy", SwiggyScraper(), restaurant.swiggy_url))
+
         if not tasks:
             _JOBS[job_id]["status"] = "completed"
             _JOBS[job_id]["message"] = "No platform URLs configured for this restaurant"
             _JOBS[job_id]["completed_at"] = datetime.utcnow().isoformat()
             return
 
-        # Run scrapers concurrently
-        scraper_results = await asyncio.gather(
-            *[scraper.scrape(url, max_reviews) for _, scraper, url in tasks],
-            return_exceptions=True,
-        )
+        # Run scrapers sequentially rather than concurrently. Launching multiple
+        # headless Chromium instances at once competes for CPU/memory and has been
+        # observed to prevent JS-heavy pages (Maps, Zomato, Swiggy, TripAdvisor)
+        # from fully hydrating before their content is read — resulting in 0
+        # reviews across the board even though each site works fine on its own.
+        scraper_results = []
+        for _, scraper, url in tasks:
+            try:
+                result = await scraper.scrape(url, max_reviews)
+            except Exception as e:
+                result = e
+            scraper_results.append(result)
 
         for (plat, _, _), result in zip(tasks, scraper_results):
             if isinstance(result, Exception):

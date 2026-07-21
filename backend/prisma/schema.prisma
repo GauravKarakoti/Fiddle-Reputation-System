@@ -1,5 +1,6 @@
 datasource db {
   provider = "postgresql"
+  url      = env("DATABASE_URL")
 }
 
 generator client {
@@ -11,6 +12,7 @@ enum ReviewSource {
   google
   zomato
   tripadvisor
+  swiggy
 }
 
 enum SentimentLabel {
@@ -25,9 +27,10 @@ model Restaurant {
   branch_code     String           @unique @db.VarChar(50)
   city            String           @db.VarChar(100)
   address         String?          @db.Text
-  google_place_id String?          @db.VarChar(200)
+  google_place_id String?          @db.VarChar(200) // primary source; required at the application layer on create
   zomato_url      String?          @db.Text
   tripadvisor_url String?          @db.Text
+  swiggy_url      String?          @db.Text
   phone           String?          @db.VarChar(20)
   manager_name    String?          @db.VarChar(200)
   is_active       Boolean          @default(true)

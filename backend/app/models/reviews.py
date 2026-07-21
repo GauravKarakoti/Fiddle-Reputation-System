@@ -5,6 +5,7 @@ class ReviewSource(str, Enum):
     google = "google"
     zomato = "zomato"
     tripadvisor = "tripadvisor"
+    swiggy = "swiggy"
 
 
 class SentimentLabel(str, Enum):

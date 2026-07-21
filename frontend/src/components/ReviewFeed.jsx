@@ -5,6 +5,7 @@ const SOURCE_COLORS = {
   google:      { bg: 'bg-blue-500/10', text: 'text-blue-400', border: 'border-blue-500/20' },
   zomato:      { bg: 'bg-red-500/10',  text: 'text-red-400',  border: 'border-red-500/20'  },
   tripadvisor: { bg: 'bg-emerald-500/10', text: 'text-emerald-400', border: 'border-emerald-500/20' },
+  swiggy:      { bg: 'bg-orange-500/10', text: 'text-orange-400', border: 'border-orange-500/20' },
 }
 
 function StarRating({ rating }) {

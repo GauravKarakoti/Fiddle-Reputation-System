@@ -32,7 +32,10 @@ async def trigger_scrape(
 ):
     """
     Trigger an asynchronous review scraping job for the given outlet.
-    Optionally specify a platform ('google', 'zomato', 'tripadvisor').
+    Optionally specify a platform ('google', 'zomato', 'tripadvisor', 'swiggy').
+    Leave unset to scrape every platform configured for the outlet — Google
+    is always attempted, and zomato/tripadvisor/swiggy are included
+    automatically whenever the outlet has a URL saved for them.
     Poll /api/scrape/status/{job_id} to check progress.
     """
     job_id = await scraper_service.trigger_scrape(
