@@ -58,9 +58,7 @@ function OutletCard({ outlet }) {
           {outlet.tripadvisor_url && (
             <span className="badge bg-emerald-500/10 text-emerald-400 border-emerald-500/20 text-xs">TA</span>
           )}
-          {outlet.swiggy_url && (
-            <span className="badge bg-orange-500/10 text-orange-400 border-orange-500/20 text-xs">S</span>
-          )}
+          
         </div>
       </div>
     </div>
@@ -70,7 +68,7 @@ function OutletCard({ outlet }) {
 function AddOutletModal({ onClose, onCreated }) {
   const [form, setForm] = useState({
     name: '', branch_code: '', city: '', address: '',
-    google_place_id: '', zomato_url: '', tripadvisor_url: '', swiggy_url: '', phone: '',
+    google_place_id: '', zomato_url: '', tripadvisor_url: '', phone: '',
   })
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState(null)
@@ -99,7 +97,7 @@ function AddOutletModal({ onClose, onCreated }) {
     { key: 'google_place_id', label: 'Google Place ID *', placeholder: 'ChIJ...' },
     { key: 'zomato_url', label: 'Zomato URL', placeholder: 'https://www.zomato.com/...' },
     { key: 'tripadvisor_url', label: 'TripAdvisor URL', placeholder: 'https://www.tripadvisor.in/...' },
-    { key: 'swiggy_url', label: 'Swiggy URL', placeholder: 'https://www.swiggy.com/...' },
+  
   ]
 
   return (

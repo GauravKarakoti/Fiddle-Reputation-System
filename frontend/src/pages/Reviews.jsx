@@ -5,7 +5,7 @@ import ReviewFeed from '../components/ReviewFeed'
 import { getRestaurants, getReviews, triggerScrape, getScrapeStatus, processNLP } from '../api/client'
 
 const SENTIMENT_OPTIONS = ['', 'positive', 'neutral', 'negative']
-const SOURCE_OPTIONS = ['', 'google', 'zomato', 'tripadvisor', 'swiggy']
+const SOURCE_OPTIONS = ['', 'google', 'zomato', 'tripadvisor']
 
 export default function Reviews() {
   const [restaurants, setRestaurants] = useState([])

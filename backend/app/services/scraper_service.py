@@ -14,7 +14,7 @@ from app.scrapers.base_scraper import RawReview
 from app.scrapers.google_scraper import GoogleScraper
 from app.scrapers.zomato_scraper import ZomatoScraper
 from app.scrapers.tripadvisor_scraper import TripAdvisorScraper
-from app.scrapers.swiggy_scraper import SwiggyScraper
+
 
 logger = logging.getLogger(__name__)
 
@@ -86,9 +86,6 @@ async def _run_scrape_job(
         if (platform is None or platform == "tripadvisor") and restaurant.tripadvisor_url:
             tasks.append(("tripadvisor", TripAdvisorScraper(), restaurant.tripadvisor_url))
 
-        if (platform is None or platform == "swiggy") and restaurant.swiggy_url:
-            tasks.append(("swiggy", SwiggyScraper(), restaurant.swiggy_url))
-
         if not tasks:
             _JOBS[job_id]["status"] = "completed"
             _JOBS[job_id]["message"] = "No platform URLs configured for this restaurant"
@@ -147,21 +144,25 @@ async def _save_reviews(
     existing_ids = {r.external_id for r in reviews_existing if r.external_id}
 
     saved_count = 0
-    # Save newly scraped reviews using a Prisma transaction context
-    async with db.tx() as transaction:
-        for raw in raw_reviews:
-            if raw.external_id and raw.external_id in existing_ids:
-                continue  # Already stored
-            if not raw.review_text and not raw.rating:
-                continue  # Skip empty reviews
+    # These are independent row creations with no atomicity requirement between
+    # them, so a single interactive transaction is the wrong tool (Prisma's
+    # default 5000ms transaction timeout will be exceeded once a scrape returns
+    # more than a handful of reviews — the same failure mode hit in NLP
+    # processing). Plain per-row creates avoid that ceiling.
+    for raw in raw_reviews:
+        if raw.external_id and raw.external_id in existing_ids:
+            continue  # Already stored
+        if not raw.review_text and not raw.rating:
+            continue  # Skip empty reviews
 
-            review_datetime = None
-            if raw.review_date:
-                review_datetime = datetime.combine(raw.review_date, datetime.min.time())
+        review_datetime = None
+        if raw.review_date:
+            review_datetime = datetime.combine(raw.review_date, datetime.min.time())
 
-            await transaction.review.create(
+        try:
+            await db.review.create(
                 data={
-                    "restaurant_id": str(restaurant_id),  # Pass the FK directly as a string
+                    "restaurant_id": str(restaurant_id),
                     "source": raw.source,
                     "external_id": raw.external_id,
                     "reviewer_name": raw.reviewer_name,
@@ -173,6 +174,8 @@ async def _save_reviews(
                 }
             )
             saved_count += 1
+        except Exception as e:
+            logger.warning(f"[ScraperService] Failed to save review: {e}")
 
     logger.info(f"[ScraperService] Saved {saved_count} new reviews for {restaurant_id}")
     return saved_count

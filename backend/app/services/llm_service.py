@@ -8,7 +8,7 @@ Results are cached in the analytics_cache table for 24 hours.
 import logging
 import asyncio
 import uuid
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from typing import Optional
 
 from prisma import Prisma
@@ -124,9 +124,21 @@ async def _aggregate_review_data(restaurant_id: uuid.UUID, db: Prisma) -> dict:
             category_counts[cat] = category_counts.get(cat, 0) + 1
 
     # Top negative reviews (most recent 10)
+    # Whether prisma-client-py returns scraped_at as naive or tz-aware depends
+    # on how the column is declared in schema.prisma (plain DateTime vs
+    # @db.Timestamptz). Rather than assume one or the other, normalize every
+    # value to naive UTC before comparing or sorting — this is also what
+    # protects the sort below if any rows are inconsistent with each other.
+    def _naive_utc(dt: Optional[datetime]) -> Optional[datetime]:
+        if dt is None:
+            return None
+        if dt.tzinfo is not None:
+            return dt.astimezone(timezone.utc).replace(tzinfo=None)
+        return dt
+
     negative_reviews = sorted(
         [r for r in reviews if r.sentiment == "negative"],
-        key=lambda r: r.scraped_at,
+        key=lambda r: _naive_utc(r.scraped_at) or datetime.min,
         reverse=True,
     )[:10]
     negative_excerpts = [
@@ -135,9 +147,21 @@ async def _aggregate_review_data(restaurant_id: uuid.UUID, db: Prisma) -> dict:
     ]
 
     # Recent rating trend (last 30 days vs previous 30)
+    # Whether prisma-client-py returns scraped_at as naive or tz-aware depends
+    # on how the column is declared in schema.prisma (plain DateTime vs
+    # @db.Timestamptz) — rather than assume one or the other (guessing wrong
+    # just flips which side of the comparison is naive, producing the exact
+    # same "can't compare offset-naive and offset-aware datetimes" error),
+    # normalize every value to naive UTC before comparing.
     recent_cutoff = datetime.utcnow() - timedelta(days=30)
-    recent_ratings = [r.rating for r in reviews if r.rating and r.scraped_at >= recent_cutoff]
-    older_ratings = [r.rating for r in reviews if r.rating and r.scraped_at < recent_cutoff]
+    recent_ratings = [
+        r.rating for r in reviews
+        if r.rating and _naive_utc(r.scraped_at) and _naive_utc(r.scraped_at) >= recent_cutoff
+    ]
+    older_ratings = [
+        r.rating for r in reviews
+        if r.rating and _naive_utc(r.scraped_at) and _naive_utc(r.scraped_at) < recent_cutoff
+    ]
     recent_avg = round(sum(recent_ratings) / len(recent_ratings), 2) if recent_ratings else None
     older_avg = round(sum(older_ratings) / len(older_ratings), 2) if older_ratings else None
 

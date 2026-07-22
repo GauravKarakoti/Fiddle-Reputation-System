@@ -70,7 +70,9 @@ async def get_scrape_status(job_id: str):
 
 @router.post(
     "/reviews/process-nlp",
-    summary="Run NLP pipeline on unprocessed reviews",
+    response_model=ScrapeJobStatus,
+    status_code=202,
+    summary="Trigger NLP pipeline on unprocessed reviews (background job)",
 )
 async def process_nlp(
     restaurant_id: Optional[uuid.UUID] = Query(None),
@@ -79,12 +81,32 @@ async def process_nlp(
 ):
     """
     Trigger NLP analysis (sentiment + complaint categories) on all
-    unprocessed reviews. Optionally scope to a single restaurant.
+    unprocessed reviews. Runs as a background job — poll
+    /api/reviews/process-nlp/status/{job_id} for progress, since sentiment
+    and zero-shot categorization can take several minutes for larger batches
+    and would otherwise hold the request open the whole time.
     """
-    count = await nlp_service.process_pending_reviews(
+    job_id = await nlp_service.trigger_nlp_processing(
         db=db, restaurant_id=restaurant_id, limit=limit
     )
-    return {"processed": count, "message": f"NLP analysis complete for {count} reviews"}
+    return ScrapeJobStatus(
+        job_id=job_id,
+        restaurant_id=restaurant_id or uuid.UUID(int=0),
+        status="pending",
+        message="NLP processing job queued",
+    )
+
+
+@router.get(
+    "/reviews/process-nlp/status/{job_id}",
+    summary="Poll NLP processing job status",
+)
+async def get_nlp_status(job_id: str):
+    """Returns the current status of an NLP processing job."""
+    job = await nlp_service.get_nlp_job_status(job_id)
+    if not job:
+        raise HTTPException(status_code=404, detail="Job not found")
+    return job
 
 
 # ── Review Retrieval ──────────────────────────────────────────────────────────

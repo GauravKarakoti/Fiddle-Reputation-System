@@ -53,7 +53,7 @@ class ScrapeJobStatus(BaseModel):
 
 class ScrapeRequest(BaseModel):
     # None = scrape every platform configured for the outlet (google is always
-    # attempted; zomato/tripadvisor/swiggy are included automatically if the
+    # attempted; zomato/tripadvisor are included automatically if the
     # outlet has a URL saved for them).
-    platform: Optional[Literal["google", "zomato", "tripadvisor", "swiggy"]] = None
+    platform: Optional[Literal["google", "zomato", "tripadvisor"]] = None
     max_reviews: Optional[int] = 50
