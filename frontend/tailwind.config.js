@@ -46,8 +46,9 @@ export default {
       animation: {
         'fade-in': 'fadeIn 0.5s ease-out',
         'slide-up': 'slideUp 0.4s ease-out',
-        'pulse-slow': 'pulse 3s infinite',
-        'shimmer': 'shimmer 2s infinite',
+        'pulse-slow': 'pulse 3s ease-in-out infinite',
+        'shimmer': 'shimmer 1.8s infinite',
+        'pulse-glow': 'pulse-glow 2.5s ease-in-out infinite',
       },
       keyframes: {
         fadeIn: { from: { opacity: 0 }, to: { opacity: 1 } },

@@ -9,81 +9,123 @@
   html { scroll-behavior: smooth; }
   body {
     @apply bg-dark-900 text-slate-100 font-sans antialiased;
-    background-image: 
-      radial-gradient(ellipse at 20% 20%, rgba(249,115,22,0.06) 0%, transparent 50%),
-      radial-gradient(ellipse at 80% 80%, rgba(234,88,12,0.04) 0%, transparent 50%);
+    background-image:
+      radial-gradient(ellipse at 15% 10%, rgba(249,115,22,0.07) 0%, transparent 45%),
+      radial-gradient(ellipse at 85% 85%, rgba(139,92,246,0.05) 0%, transparent 50%),
+      radial-gradient(ellipse at 50% 50%, rgba(16,185,129,0.03) 0%, transparent 60%);
     min-height: 100vh;
   }
-  ::-webkit-scrollbar { width: 6px; height: 6px; }
+  ::-webkit-scrollbar { width: 5px; height: 5px; }
   ::-webkit-scrollbar-track { @apply bg-dark-800; }
-  ::-webkit-scrollbar-thumb { @apply bg-dark-400 rounded-full; }
+  ::-webkit-scrollbar-thumb { @apply bg-dark-500 rounded-full; }
   ::-webkit-scrollbar-thumb:hover { @apply bg-brand-600; }
 }
 
 @layer components {
+  /* ── Cards ── */
   .card {
-    @apply bg-dark-700 border border-dark-500 rounded-2xl shadow-card backdrop-blur-sm;
-    background: linear-gradient(145deg, rgba(26,26,39,0.9) 0%, rgba(34,34,58,0.7) 100%);
+    @apply bg-dark-700 border border-dark-500/70 rounded-2xl shadow-card backdrop-blur-sm;
+    background: linear-gradient(145deg, rgba(22,22,36,0.95) 0%, rgba(30,30,50,0.75) 100%);
   }
   .card-hover {
-    @apply card transition-all duration-300 hover:border-brand-600/40 hover:shadow-glow-brand hover:-translate-y-0.5;
+    @apply card transition-all duration-300 hover:border-brand-600/30 hover:shadow-glow-brand hover:-translate-y-0.5;
   }
+
+  /* ── Buttons ── */
   .btn-primary {
-    @apply bg-gradient-brand text-white font-semibold px-5 py-2.5 rounded-xl 
-           shadow-glow-brand hover:opacity-90 active:scale-95 
-           transition-all duration-200 flex items-center gap-2;
+    @apply bg-gradient-brand text-white font-semibold px-5 py-2.5 rounded-xl
+           shadow-glow-brand hover:opacity-90 active:scale-[0.97]
+           transition-all duration-200 flex items-center gap-2 text-sm;
   }
   .btn-ghost {
-    @apply text-slate-400 hover:text-slate-100 hover:bg-dark-600 
-           px-4 py-2 rounded-lg transition-all duration-200 flex items-center gap-2;
+    @apply text-slate-400 hover:text-slate-100 hover:bg-dark-600/80
+           px-4 py-2 rounded-lg transition-all duration-200 flex items-center gap-2 text-sm;
   }
+
+  /* ── Badges ── */
   .badge {
     @apply inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-medium;
   }
-  .badge-positive { @apply badge bg-emerald-500/20 text-emerald-400 border border-emerald-500/30; }
-  .badge-negative { @apply badge bg-red-500/20 text-red-400 border border-red-500/30; }
-  .badge-neutral  { @apply badge bg-slate-500/20 text-slate-400 border border-slate-500/30; }
+  .badge-positive { @apply badge bg-emerald-500/15 text-emerald-400 border border-emerald-500/25; }
+  .badge-negative { @apply badge bg-red-500/15 text-red-400 border border-red-500/25; }
+  .badge-neutral  { @apply badge bg-slate-500/15 text-slate-400 border border-slate-500/25; }
+
+  /* ── Stat card ── */
   .stat-card {
-    @apply card p-5 flex flex-col gap-2 animate-slide-up;
+    @apply card p-5 flex flex-col gap-1 animate-slide-up;
   }
+
+  /* ── Section title ── */
   .section-title {
-    @apply font-display text-lg font-semibold text-slate-100 mb-4;
+    @apply font-display text-base font-semibold text-slate-100 mb-4;
   }
+
+  /* ── Skeleton ── */
   .skeleton {
-    @apply bg-dark-600 rounded-lg animate-pulse;
-    background: linear-gradient(90deg, #1a1a27 25%, #22223a 50%, #1a1a27 75%);
+    @apply rounded-xl;
+    background: linear-gradient(90deg, #14141f 25%, #1c1c2e 50%, #14141f 75%);
     background-size: 200% 100%;
-    animation: shimmer 2s infinite;
+    animation: shimmer 1.8s infinite;
   }
+
+  /* ── Nav item ── */
   .nav-item {
-    @apply flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium 
-           text-slate-400 hover:text-slate-100 hover:bg-dark-600 
-           transition-all duration-200 cursor-pointer;
+    @apply flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium
+           text-slate-500 hover:text-slate-100 hover:bg-dark-600/60
+           transition-all duration-200 cursor-pointer border border-transparent;
   }
   .nav-item.active {
-    @apply text-brand-400 bg-brand-500/10 border border-brand-500/20;
+    @apply text-brand-400 bg-brand-500/10 border-brand-500/20 border;
   }
-  .star-rating {
-    @apply text-amber-400 text-sm font-semibold;
+
+  /* ── Input ── */
+  .input-base {
+    @apply w-full bg-dark-600 border border-dark-400 rounded-xl px-3 py-2.5 text-sm text-slate-200
+           outline-none focus:border-brand-500 transition-colors placeholder-slate-600;
   }
 }
 
-/* Custom recharts tooltip */
+/* ── Recharts tooltip override ── */
 .recharts-tooltip-wrapper .recharts-default-tooltip {
-  background: rgba(26,26,39,0.95) !important;
-  border: 1px solid rgba(249,115,22,0.3) !important;
+  background: rgba(20,20,32,0.97) !important;
+  border: 1px solid rgba(249,115,22,0.25) !important;
   border-radius: 12px !important;
-  backdrop-filter: blur(8px) !important;
+  backdrop-filter: blur(12px) !important;
+  box-shadow: 0 8px 32px rgba(0,0,0,0.5) !important;
 }
-.recharts-tooltip-item { color: #f1f5f9 !important; }
-.recharts-tooltip-label { color: #94a3b8 !important; }
+.recharts-tooltip-item { color: #f1f5f9 !important; font-size: 12px !important; }
+.recharts-tooltip-label { color: #94a3b8 !important; font-size: 11px !important; }
 
-/* Markdown styles for AI insights */
+/* ── Markdown / Prose for AI Insights ── */
 .prose-insights h2 { @apply text-brand-400 font-display font-semibold text-base mb-2 mt-4; }
 .prose-insights h3 { @apply text-slate-200 font-semibold text-sm mb-2 mt-3; }
-.prose-insights p { @apply text-slate-300 text-sm leading-relaxed mb-3; }
+.prose-insights p  { @apply text-slate-300 text-sm leading-relaxed mb-3; }
 .prose-insights ul { @apply space-y-1.5 pl-4 mb-3; }
-.prose-insights li { @apply text-slate-300 text-sm leading-relaxed; }
+.prose-insights li { @apply text-slate-300 text-sm leading-relaxed list-disc; }
 .prose-insights strong { @apply text-slate-100 font-semibold; }
 .prose-insights ol { @apply space-y-2 pl-4 mb-3 list-decimal; }
 .prose-insights hr { @apply border-dark-500 my-4; }
+.prose-insights code { @apply text-brand-300 bg-dark-600 px-1 py-0.5 rounded text-xs; }
+
+/* ── Custom keyframes ── */
+@keyframes shimmer {
+  0%   { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
+}
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+@keyframes slideUp {
+  from { opacity: 0; transform: translateY(14px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+@keyframes pulse-glow {
+  0%, 100% { box-shadow: 0 0 8px rgba(249,115,22,0.3); }
+  50%       { box-shadow: 0 0 20px rgba(249,115,22,0.6); }
+}
+
+/* ── Utility animations ── */
+.animate-fade-in  { animation: fadeIn  0.5s ease-out both; }
+.animate-slide-up { animation: slideUp 0.4s ease-out both; }
+.animate-pulse-glow { animation: pulse-glow 2.5s ease-in-out infinite; }
