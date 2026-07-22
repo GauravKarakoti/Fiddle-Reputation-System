@@ -4,11 +4,10 @@ import Header from '../components/Header'
 import SentimentDonut from '../components/SentimentDonut'
 import RatingTrend from '../components/RatingTrend'
 import ComplaintCategories from '../components/ComplaintCategories'
-import OutletComparison from '../components/OutletComparison'
 import ReviewFeed from '../components/ReviewFeed'
 import AIInsightsPanel from '../components/AIInsightsPanel'
 import {
-  getOverview, getRatingTrend, getOutletComparison, getRestaurants, getReviews
+  getOverview, getRatingTrend, getRestaurants, getReviews
 } from '../api/client' 
 
 function StatCard({ icon: Icon, label, value, sub, color = 'brand' }) {
@@ -35,7 +34,6 @@ function StatCard({ icon: Icon, label, value, sub, color = 'brand' }) {
 export default function Dashboard() {
   const [overview, setOverview]     = useState(null)
   const [trend, setTrend]           = useState([])
-  const [comparison, setComparison] = useState([])
   const [reviews, setReviews]       = useState([])
   const [restaurants, setRestaurants] = useState([])
   const [selectedOutlet, setSelectedOutlet] = useState(null)
@@ -45,13 +43,11 @@ export default function Dashboard() {
   const loadData = useCallback(async () => {
     setLoading(true)
     try {
-      const [ov, comp, rests] = await Promise.all([
+      const [ov, rests] = await Promise.all([
         getOverview(),
-        getOutletComparison(),
         getRestaurants(),
       ])
       setOverview(ov)
-      setComparison(comp.outlets || [])
       setRestaurants(rests.items || []) 
 
       // Load trend for first outlet if available
@@ -156,15 +152,11 @@ export default function Dashboard() {
             </div>
           </div>
 
-          {/* Center: Trend + Outlet comparison */}
+          {/* Center: Trend */}
           <div className="space-y-6">
             <div className="card p-5">
               <p className="section-title">Rating & Review Trend (90 days)</p>
               <RatingTrend data={trend} />
-            </div>
-            <div className="card p-5">
-              <p className="section-title">Outlet Performance Comparison</p>
-              <OutletComparison data={comparison} />
             </div>
           </div>
 

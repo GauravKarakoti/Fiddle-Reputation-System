@@ -1,15 +1,10 @@
 import { useState, useEffect, useCallback } from 'react'
-import { Star, TrendingUp, MessageCircle, Building2, AlertTriangle } from 'lucide-react'
+import { Sparkles, Building2, Star, MessageCircle, AlertTriangle } from 'lucide-react'
 import Header from '../components/Header'
 import SentimentDonut from '../components/SentimentDonut'
-import RatingTrend from '../components/RatingTrend'
 import ComplaintCategories from '../components/ComplaintCategories'
-import OutletComparison from '../components/OutletComparison'
-import ReviewFeed from '../components/ReviewFeed'
 import AIInsightsPanel from '../components/AIInsightsPanel'
-import {
-  getOverview, getRatingTrend, getOutletComparison, getRestaurants, getReviews
-} from '../api/client' 
+import { getRestaurants, getOutletAnalytics } from '../api/client'
 
 function StatCard({ icon: Icon, label, value, sub, color = 'brand' }) {
   const colorMap = {
@@ -19,166 +14,179 @@ function StatCard({ icon: Icon, label, value, sub, color = 'brand' }) {
     purple:  'from-violet-500/20 to-violet-600/10 border-violet-500/20 text-violet-400',
   }
   return (
-    <div className={`stat-card bg-gradient-to-br ${colorMap[color]} border`}>
+    <div className={`stat-card bg-gradient-to-br ${colorMap[color]} border p-4`}>
       <div className="flex items-center justify-between">
-        <p className="text-xs text-slate-500 font-medium uppercase tracking-wider">{label}</p>
-        <div className={`w-8 h-8 rounded-lg flex items-center justify-center bg-dark-700`}>
-          <Icon size={15} className={colorMap[color].split(' ').pop()} />
+        <p className="text-[10px] text-slate-500 font-medium uppercase tracking-wider">{label}</p>
+        <div className="w-7 h-7 rounded-lg flex items-center justify-center bg-dark-700">
+          <Icon size={13} className={colorMap[color].split(' ').pop()} />
         </div>
       </div>
-      <p className="font-display font-bold text-3xl text-slate-100 mt-1">{value ?? '—'}</p>
-      {sub && <p className="text-xs text-slate-500">{sub}</p>}
+      <p className="font-display font-bold text-xl text-slate-100 mt-1">{value ?? '—'}</p>
+      {sub && <p className="text-[10px] text-slate-500 mt-0.5 truncate">{sub}</p>}
     </div>
   )
 }
 
-export default function Dashboard() {
-  const [overview, setOverview]     = useState(null)
-  const [trend, setTrend]           = useState([])
-  const [comparison, setComparison] = useState([])
-  const [reviews, setReviews]       = useState([])
+export default function Insights() {
   const [restaurants, setRestaurants] = useState([])
-  const [selectedOutlet, setSelectedOutlet] = useState(null)
-  const [loading, setLoading]       = useState(true)
+  const [selectedOutlet, setSelectedOutlet] = useState('')
+  const [outletData, setOutletData] = useState(null)
+  const [loading, setLoading] = useState(true)
+  const [loadingOutlet, setLoadingOutlet] = useState(false)
   const [refreshKey, setRefreshKey] = useState(0)
 
-  const loadData = useCallback(async () => {
+  const loadInitial = useCallback(async () => {
     setLoading(true)
     try {
-      const [ov, comp, rests] = await Promise.all([
-        getOverview(),
-        getOutletComparison(),
-        getRestaurants(),
-      ])
-      setOverview(ov)
-      setComparison(comp.outlets || [])
-      setRestaurants(rests.items || []) 
-
-      // Load trend for first outlet if available
-      if (rests.items?.length) {
-        const firstId = rests.items[0].id
-        setSelectedOutlet(firstId)
-        const [t, r] = await Promise.all([
-          getRatingTrend(firstId, '90d'),
-          getReviews(firstId, { page_size: 10 }),
-        ])
-        setTrend(t.trend || [])
-        setReviews(r.items || [])
+      const rests = await getRestaurants()
+      const items = rests.items || []
+      setRestaurants(items)
+      if (items.length > 0) {
+        setSelectedOutlet(items[0].id)
+        await fetchOutletData(items[0].id)
       }
     } catch (e) {
-      console.error('Dashboard load error', e)
+      console.error('Failed to load restaurants', e)
     } finally {
       setLoading(false)
     }
   }, [])
 
-  useEffect(() => { loadData() }, [loadData, refreshKey])
+  const fetchOutletData = async (outletId) => {
+    setLoadingOutlet(true)
+    try {
+      const data = await getOutletAnalytics(outletId)
+      setOutletData(data)
+    } catch (e) {
+      console.error('Failed to load outlet analytics', e)
+    } finally {
+      setLoadingOutlet(false)
+    }
+  }
+
+  useEffect(() => {
+    loadInitial()
+  }, [loadInitial, refreshKey])
 
   const handleOutletChange = async (outletId) => {
     setSelectedOutlet(outletId)
-    if (!outletId) return
-    const [t, r] = await Promise.all([
-      getRatingTrend(outletId, '90d'),
-      getReviews(outletId, { page_size: 10 }),
-    ])
-    setTrend(t.trend || [])
-    setReviews(r.items || [])
+    if (outletId) {
+      await fetchOutletData(outletId)
+    } else {
+      setOutletData(null)
+    }
   }
 
-  const negPct = overview
+  const negPct = outletData
     ? Math.round(
-        ((overview.sentiment_counts?.negative || 0) /
-          Math.max(Object.values(overview.sentiment_counts || {}).reduce((a, b) => a + b, 0), 1)) * 100
+        ((outletData.sentiment_counts?.negative || 0) /
+          Math.max(Object.values(outletData.sentiment_counts || {}).reduce((a, b) => a + b, 0), 1)) * 100
       )
     : 0
 
   return (
-    <div className="flex flex-col h-full"> 
+    <div className="flex flex-col h-full">
       <Header
-        title="Reputation Dashboard"
-        subtitle="First Fiddle Restaurants — Live Review Intelligence"
+        title="AI Insights"
+        subtitle="AI-powered operational recommendations and sentiment analysis for First Fiddle branches"
         onRefresh={() => setRefreshKey(k => k + 1)}
       />
 
       <div className="flex-1 overflow-y-auto p-6 space-y-6">
-        {/* Stat cards */}
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-          <StatCard
-            icon={Building2} label="Active Outlets"
-            value={loading ? '…' : overview?.total_outlets}
-            sub="First Fiddle branches" color="brand"
-          />
-          <StatCard
-            icon={MessageCircle} label="Total Reviews"
-            value={loading ? '…' : overview?.total_reviews?.toLocaleString()}
-            sub="All platforms combined" color="purple" 
-          />
-          <StatCard
-            icon={Star} label="Avg Rating"
-            value={loading ? '…' : overview?.avg_rating ? `${overview.avg_rating}★` : '—'}
-            sub="Across all outlets" color="green"
-          />
-          <StatCard
-            icon={AlertTriangle} label="Negative Rate"
-            value={loading ? '…' : `${negPct}%`}
-            sub={`${overview?.sentiment_counts?.negative || 0} negative reviews`}
-            color={negPct > 30 ? 'red' : 'brand'}
-          />
+        {/* Controls */}
+        <div className="card p-4 flex flex-wrap gap-4 items-center justify-between">
+          <div className="flex items-center gap-3">
+            <div className="w-9 h-9 bg-gradient-to-br from-violet-500 to-purple-700 rounded-xl flex items-center justify-center shadow-lg">
+              <Sparkles size={16} className="text-white" />
+            </div>
+            <div>
+              <p className="font-semibold text-slate-100 text-sm">Select Outlet for AI Analysis</p>
+              <p className="text-xs text-slate-500">Analyze reviews and generate operational recommendations</p>
+            </div>
+          </div>
+
+          {restaurants.length > 0 && (
+            <div className="flex items-center gap-3">
+              <label className="text-xs text-slate-400">Viewing outlet:</label>
+              <select
+                className="bg-dark-600 border border-dark-400 rounded-xl px-3 py-2 text-sm text-slate-200 outline-none focus:border-brand-500 transition-colors"
+                value={selectedOutlet}
+                onChange={e => handleOutletChange(e.target.value)}
+              >
+                {restaurants.map(r => (
+                  <option key={r.id} value={r.id}>{r.name}</option>
+                ))}
+              </select>
+            </div>
+          )}
         </div>
 
-        {/* Outlet selector */}
-        {restaurants.length > 0 && (
-          <div className="flex items-center gap-3">
-            <p className="text-sm text-slate-500">Viewing outlet:</p>
-            <select
-              className="bg-dark-700 border border-dark-400 rounded-xl px-3 py-2 text-sm text-slate-200 outline-none focus:border-brand-500 transition-colors"
-              value={selectedOutlet || ''}
-              onChange={e => handleOutletChange(e.target.value)}
-            >
-              {restaurants.map(r => (
-                <option key={r.id} value={r.id}>{r.name}</option>
-              ))}
-            </select>
-          </div> 
-        )}
-
-        {/* Main grid */}
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          {/* Left: Sentiment + Categories */}
-          <div className="space-y-6">
-            <div className="card p-5">
-              <p className="section-title">Sentiment Distribution</p>
-              <SentimentDonut data={overview?.sentiment_counts || {}} />
-            </div>
-            <div className="card p-5">
-              <p className="section-title">Complaint Categories</p>
-              <ComplaintCategories data={overview?.category_counts || {}} />
-            </div>
+        {loading ? (
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            <div className="skeleton h-[400px] rounded-2xl" />
+            <div className="lg:col-span-2 skeleton h-[500px] rounded-2xl" />
           </div>
-
-          {/* Center: Trend + Outlet comparison */}
-          <div className="space-y-6">
-            <div className="card p-5">
-              <p className="section-title">Rating & Review Trend (90 days)</p>
-              <RatingTrend data={trend} />
-            </div>
-            <div className="card p-5">
-              <p className="section-title">Outlet Performance Comparison</p>
-              <OutletComparison data={comparison} />
-            </div>
+        ) : !selectedOutlet ? (
+          <div className="flex flex-col items-center justify-center h-64 text-slate-500 gap-3">
+            <Building2 size={40} className="opacity-20" />
+            <p>Please select an outlet to start the AI Analysis.</p>
           </div>
+        ) : (
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            {/* Left: Outlet Data and Charts */}
+            <div className="space-y-6">
+              {/* Stat summary for outlet */}
+              <div className="grid grid-cols-2 gap-4">
+                <StatCard
+                  icon={MessageCircle}
+                  label="Reviews"
+                  value={loadingOutlet ? '…' : outletData?.total_reviews}
+                  sub="Last 30 days"
+                  color="purple"
+                />
+                <StatCard
+                  icon={Star}
+                  label="Avg Rating"
+                  value={loadingOutlet ? '…' : outletData?.avg_rating ? `${outletData.avg_rating}★` : '—'}
+                  sub="Last 30 days"
+                  color="green"
+                />
+                <StatCard
+                  icon={AlertTriangle}
+                  label="Negative Rate"
+                  value={loadingOutlet ? '…' : `${negPct}%`}
+                  sub={`${outletData?.sentiment_counts?.negative || 0} reviews`}
+                  color={negPct > 30 ? 'red' : 'brand'}
+                />
+              </div>
 
-          {/* Right: Reviews + AI Insights */}
-          <div className="space-y-6">
-            <div className="card p-5">
-              <p className="section-title">Recent Reviews</p>
-              <ReviewFeed reviews={reviews} loading={loading} />
+              {/* Sentiment distribution for outlet */}
+              <div className="card p-5">
+                <p className="text-xs text-slate-500 uppercase tracking-wider font-medium mb-3">Sentiment Distribution</p>
+                {loadingOutlet ? (
+                  <div className="skeleton h-48 rounded-xl" />
+                ) : (
+                  <SentimentDonut data={outletData?.sentiment_counts || {}} />
+                )}
+              </div>
+
+              {/* Top complaints categories */}
+              <div className="card p-5">
+                <p className="text-xs text-slate-500 uppercase tracking-wider font-medium mb-3">Key Feedback Categories</p>
+                {loadingOutlet ? (
+                  <div className="skeleton h-48 rounded-xl" />
+                ) : (
+                  <ComplaintCategories data={outletData?.category_counts || {}} />
+                )}
+              </div>
             </div>
-            <div className="card p-5 min-h-64">
+
+            {/* Right: AI Insights Panel */}
+            <div className="lg:col-span-2 card p-6 min-h-[500px]">
               <AIInsightsPanel restaurantId={selectedOutlet} />
             </div>
           </div>
-        </div>
+        )}
       </div>
     </div>
   )

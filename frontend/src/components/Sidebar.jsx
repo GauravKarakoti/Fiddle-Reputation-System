@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { NavLink, useLocation } from 'react-router-dom'
 import {
   LayoutDashboard, Star, Building2, Sparkles,
-  ChevronLeft, ChevronRight, Utensils
+  ChevronLeft, ChevronRight, Utensils, GitCompare
 } from 'lucide-react'
 import clsx from 'clsx'
 
@@ -10,6 +10,7 @@ const NAV_ITEMS = [
   { label: 'Dashboard',  icon: LayoutDashboard, to: '/' },
   { label: 'Outlets',    icon: Building2,       to: '/outlets' },
   { label: 'Reviews',    icon: Star,            to: '/reviews' },
+  { label: 'Comparison', icon: GitCompare,      to: '/comparison' },
   { label: 'AI Insights',icon: Sparkles,        to: '/insights' },
 ]
 

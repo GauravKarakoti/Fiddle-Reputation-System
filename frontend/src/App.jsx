@@ -4,6 +4,7 @@ import Dashboard from './pages/Dashboard'
 import Outlets from './pages/Outlets'
 import Reviews from './pages/Reviews'
 import Insights from './pages/Insights'
+import Comparison from './pages/Comparison'
 import './index.css'
 
 export default function App() {
@@ -13,10 +14,11 @@ export default function App() {
         <Sidebar />
         <main className="flex-1 overflow-hidden flex flex-col">
           <Routes>
-            <Route path="/"         element={<Dashboard />} />
-            <Route path="/outlets"  element={<Outlets />} />
-            <Route path="/reviews"  element={<Reviews />} />
-            <Route path="/insights" element={<Insights />} />
+            <Route path="/"           element={<Dashboard />} />
+            <Route path="/outlets"    element={<Outlets />} />
+            <Route path="/reviews"    element={<Reviews />} />
+            <Route path="/comparison" element={<Comparison />} />
+            <Route path="/insights"   element={<Insights />} />
           </Routes>
         </main>
       </div>
