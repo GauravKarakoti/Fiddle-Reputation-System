@@ -11,8 +11,7 @@ const NAV_ITEMS = [
   { label: 'Dashboard',   icon: LayoutDashboard, to: '/',           end: true },
   { label: 'Outlets',     icon: Building2,       to: '/outlets' },
   { label: 'Reviews',     icon: Star,            to: '/reviews' },
-  { label: 'Comparison',  icon: GitCompare,      to: '/comparison' },
-  { label: 'AI Insights', icon: Sparkles,        to: '/insights' },
+  { label: 'Comparison',  icon: GitCompare,      to: '/comparison' }
 ]
 
 export default function Sidebar() {

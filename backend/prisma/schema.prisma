@@ -20,6 +20,19 @@ enum SentimentLabel {
   negative
 }
 
+model User {
+  id            String   @id @default(uuid())
+  name          String
+  email         String   @unique
+  password_hash String
+  role          String   @default("member") // "admin" | "member" — not enforced anywhere yet, available for later use
+  is_active     Boolean  @default(true)
+  created_at    DateTime @default(now())
+  updated_at    DateTime @updatedAt
+
+  @@map("users")
+}
+
 model Restaurant {
   id              String           @id @default(uuid())
   name            String           @db.VarChar(200)

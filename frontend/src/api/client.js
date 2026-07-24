@@ -1,9 +1,22 @@
 import axios from 'axios'
 
+const TOKEN_KEY = 'ff_auth_token'
+
 const api = axios.create({ 
   baseURL: import.meta.env.VITE_API_URL || '',
   timeout: 30000,
   headers: { 'Content-Type': 'application/json' },
+})
+
+// Attach the stored token to every request. The API doesn't require it on
+// any route yet, but wiring this up now means nothing changes on the
+// frontend later if/when routes start requiring auth.
+api.interceptors.request.use((config) => {
+  const token = localStorage.getItem(TOKEN_KEY)
+  if (token) {
+    config.headers.Authorization = `Bearer ${token}`
+  }
+  return config
 })
 
 api.interceptors.response.use( 
@@ -13,6 +26,18 @@ api.interceptors.response.use(
     return Promise.reject(err)
   }
 )
+
+// ── Auth ──────────────────────────────────────────────────────────────────────
+export const AUTH_TOKEN_KEY = TOKEN_KEY
+
+export const registerUser = (data) =>
+  api.post('/api/auth/register', data).then(r => r.data)
+
+export const loginUser = (data) =>
+  api.post('/api/auth/login', data).then(r => r.data)
+
+export const getMe = () =>
+  api.get('/api/auth/me').then(r => r.data)
 
 // ── Restaurants ───────────────────────────────────────────────────────────────
 export const getRestaurants = (params = {}) =>

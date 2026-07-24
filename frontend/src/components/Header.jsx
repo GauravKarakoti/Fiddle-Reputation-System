@@ -1,11 +1,17 @@
 import { useState, useRef, useEffect } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { Bell, RefreshCw, Settings, LogOut, User2, ChevronRight, X, Shield, Moon, Globe2, Zap } from 'lucide-react'
+import { useAuth } from '../context/AuthContext'
 
 // ── Profile Settings Modal ─────────────────────────────────────────────────────
-function ProfileModal({ onClose }) {
+function ProfileModal({ user, onClose }) {
   const [tab, setTab] = useState('profile')
-  const [form, setForm] = useState({ name: 'Bhumika Singh', email: 'founder@firstfiddle.in', role: 'Founder & CEO' })
+  const [form, setForm] = useState({ name: user.name, email: user.email, role: user.role })
   const [saved, setSaved] = useState(false)
+
+  const initials = user.name
+    ? user.name.split(' ').map(w => w[0]).slice(0, 2).join('').toUpperCase()
+    : '?'
 
   const handleSave = () => {
     setSaved(true)
@@ -22,7 +28,7 @@ function ProfileModal({ onClose }) {
         <div className="flex items-center justify-between px-6 py-4 border-b border-dark-500 bg-gradient-to-r from-dark-700 to-dark-800">
           <div className="flex items-center gap-3">
             <div className="w-9 h-9 bg-gradient-brand rounded-xl flex items-center justify-center shadow-glow-brand">
-              <span className="text-white text-sm font-bold">BS</span>
+              <span className="text-white text-sm font-bold">{initials}</span>
             </div>
             <div>
               <p className="font-display font-semibold text-slate-100 text-sm">Account Settings</p>
@@ -62,7 +68,7 @@ function ProfileModal({ onClose }) {
               {/* Avatar */}
               <div className="flex items-center gap-4 p-4 bg-dark-700/50 rounded-xl border border-dark-500">
                 <div className="w-14 h-14 bg-gradient-brand rounded-2xl flex items-center justify-center shadow-glow-brand flex-shrink-0">
-                  <span className="text-white text-lg font-bold">BS</span>
+                  <span className="text-white text-lg font-bold">{initials}</span>
                 </div>
                 <div>
                   <p className="font-semibold text-slate-100">{form.name}</p>
@@ -139,6 +145,9 @@ export default function Header({ title, subtitle, onRefresh, notifications: init
     { id: 4, type: 'info', title: '📊 Weekly report generated', sub: 'Your platform-wide digest is ready to view', time: 'Yesterday', unread: false },
   ]
 
+  const { user, logout } = useAuth()
+  const navigate = useNavigate()
+
   const [notifications, setNotifications] = useState(initialNotifs?.length ? initialNotifs : defaultNotifications)
   const [showNotifications, setShowNotifications] = useState(false)
   const [showProfile, setShowProfile] = useState(false)
@@ -146,12 +155,24 @@ export default function Header({ title, subtitle, onRefresh, notifications: init
   const notifRef = useRef(null)
   const profileRef = useRef(null)
 
-  const user = { name: 'Bhumika Singh', initials: 'BS', role: 'Founder & CEO' }
+  // user comes from AuthContext now instead of being hardcoded. Fall back
+  // gracefully in case Header ever renders during the brief loading window
+  // before AuthContext resolves.
+  const displayName = user?.name || 'Loading…'
+  const displayRole = user?.role || ''
+  const initials = user?.name
+    ? user.name.split(' ').map(w => w[0]).slice(0, 2).join('').toUpperCase()
+    : '?'
 
   const unreadCount = notifications.filter(n => n.unread).length
 
   const markAllRead = () => setNotifications(ns => ns.map(n => ({ ...n, unread: false })))
   const dismissNotif = (id) => setNotifications(ns => ns.filter(n => n.id !== id))
+
+  const handleSignOut = () => {
+    logout()
+    navigate('/login', { replace: true })
+  }
 
   useEffect(() => {
     function handleClickOutside(e) {
@@ -270,11 +291,11 @@ export default function Header({ title, subtitle, onRefresh, notifications: init
               title="Profile"
             >
               <div className="w-7 h-7 bg-gradient-brand rounded-lg flex items-center justify-center shadow-glow-brand flex-shrink-0">
-                <span className="text-white text-[11px] font-bold">{user.initials}</span>
+                <span className="text-white text-[11px] font-bold">{initials}</span>
               </div>
               <div className="hidden sm:block text-left">
-                <p className="text-xs font-semibold text-slate-200 leading-none">{user.name}</p>
-                <p className="text-[10px] text-slate-500 mt-0.5">{user.role}</p>
+                <p className="text-xs font-semibold text-slate-200 leading-none">{displayName}</p>
+                {displayRole && <p className="text-[10px] text-slate-500 mt-0.5">{displayRole}</p>}
               </div>
               <ChevronRight size={12} className={`text-slate-500 transition-transform hidden sm:block ${showProfile ? 'rotate-90' : ''}`} />
             </button>
@@ -285,11 +306,11 @@ export default function Header({ title, subtitle, onRefresh, notifications: init
                 <div className="px-4 py-3.5 border-b border-dark-500 bg-gradient-to-br from-dark-600 to-dark-700">
                   <div className="flex items-center gap-2.5">
                     <div className="w-9 h-9 bg-gradient-brand rounded-xl flex items-center justify-center shadow-glow-brand flex-shrink-0">
-                      <span className="text-white text-xs font-bold">{user.initials}</span>
+                      <span className="text-white text-xs font-bold">{initials}</span>
                     </div>
                     <div>
-                      <p className="text-sm font-semibold text-slate-100">{user.name}</p>
-                      <p className="text-[10px] text-slate-500">{user.role}</p>
+                      <p className="text-sm font-semibold text-slate-100">{displayName}</p>
+                      {displayRole && <p className="text-[10px] text-slate-500">{displayRole}</p>}
                     </div>
                   </div>
                 </div>
@@ -312,7 +333,7 @@ export default function Header({ title, subtitle, onRefresh, notifications: init
                 <div className="py-1 border-t border-dark-500">
                   <button
                     className="w-full flex items-center gap-2.5 px-4 py-2.5 text-sm text-red-400 hover:bg-red-500/10 transition-colors text-left"
-                    onClick={() => alert('Log out action — wire to your auth system')}
+                    onClick={handleSignOut}
                   >
                     <LogOut size={14} />
                     Sign out
@@ -325,7 +346,7 @@ export default function Header({ title, subtitle, onRefresh, notifications: init
       </header>
 
       {/* Profile modal */}
-      {showProfileModal && <ProfileModal onClose={() => setShowProfileModal(false)} />}
+      {showProfileModal && user && <ProfileModal user={user} onClose={() => setShowProfileModal(false)} />}
     </>
   )
 }

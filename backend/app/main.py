@@ -7,9 +7,10 @@ from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
 from app.config import get_settings
 from app.database import db
-from app.routers import restaurants, reviews, analytics, insights
+from app.routers import restaurants, reviews, analytics, insights, auth
 
 # ── Logging ───────────────────────────────────────────────────────────────────
 logging.basicConfig(
@@ -56,6 +57,7 @@ app.add_middleware(
 )
 
 # ── Routers ───────────────────────────────────────────────────────────────────
+app.include_router(auth.router)
 app.include_router(restaurants.router)
 app.include_router(reviews.router)
 app.include_router(analytics.router)
@@ -66,4 +68,3 @@ app.include_router(insights.router)
 @app.get("/health", tags=["System"])
 async def health_check():
     return {"status": "ok", "version": settings.APP_VERSION}
-    

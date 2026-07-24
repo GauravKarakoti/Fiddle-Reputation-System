@@ -31,6 +31,13 @@ class Settings(BaseSettings):
     SENTIMENT_MODEL: str = "cardiffnlp/twitter-roberta-base-sentiment-latest"
     USE_GPU: bool = False
 
+    # Auth
+    # IMPORTANT: override JWT_SECRET_KEY via .env in any real deployment —
+    # this default is fine for local dev only.
+    JWT_SECRET_KEY: str = "dev-only-change-me-via-env"
+    JWT_ALGORITHM: str = "HS256"
+    JWT_EXPIRE_MINUTES: int = 60 * 24 * 7  # 7 days
+
     @property
     def allowed_origins_list(self) -> List[str]:
         return [o.strip() for o in self.ALLOWED_ORIGINS.split(",")]
