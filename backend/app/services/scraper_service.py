@@ -92,11 +92,7 @@ async def _run_scrape_job(
             _JOBS[job_id]["completed_at"] = datetime.utcnow().isoformat()
             return
 
-        # Run scrapers sequentially rather than concurrently. Launching multiple
-        # headless Chromium instances at once competes for CPU/memory and has been
-        # observed to prevent JS-heavy pages (Maps, Zomato, Swiggy, TripAdvisor)
-        # from fully hydrating before their content is read — resulting in 0
-        # reviews across the board even though each site works fine on its own.
+        
         scraper_results = []
         for _, scraper, url in tasks:
             try:

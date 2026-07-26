@@ -2,12 +2,15 @@ import { useState, useEffect, useCallback } from 'react'
 import { Filter, Play, Loader2, RefreshCw, CheckCircle2 } from 'lucide-react'
 import Header from '../components/Header'
 import ReviewFeed from '../components/ReviewFeed'
-import { getRestaurants, getReviews, triggerScrape, getScrapeStatus, processNLP } from '../api/client'
+import { getRestaurants, getReviews, triggerScrape, getScrapeStatus, processNLP, getNlpStatus } from '../api/client'
+import { useNotifications } from '../context/NotificationsContext'
 
 const SENTIMENT_OPTIONS = ['', 'positive', 'neutral', 'negative']
 const SOURCE_OPTIONS = ['', 'google', 'zomato', 'tripadvisor']
 
 export default function Reviews() {
+  const { addNotification } = useNotifications()
+
   const [restaurants, setRestaurants] = useState([])
   const [reviews, setReviews]         = useState([])
   const [total, setTotal]             = useState(0)
@@ -20,10 +23,12 @@ export default function Reviews() {
 
   const [scrapeJob, setScrapeJob]     = useState(null)
   const [scrapeLoading, setScrapeLoading] = useState(false)
+  const [nlpJob, setNlpJob]           = useState(null)
   const [nlpLoading, setNlpLoading]   = useState(false)
-  const [nlpResult, setNlpResult]     = useState(null)
 
   const PAGE_SIZE = 20
+
+  const outletName = (id) => restaurants.find(r => r.id === id)?.name || 'the selected outlet'
 
   // Load restaurants
   useEffect(() => {
@@ -51,7 +56,8 @@ export default function Reviews() {
 
   useEffect(() => { loadReviews() }, [loadReviews])
 
-  // Poll scrape job
+  // Poll scrape job — fires a real notification exactly once, at the moment
+  // the job actually finishes (not when it's merely queued).
   useEffect(() => {
     if (!scrapeJob || scrapeJob.status === 'completed' || scrapeJob.status === 'failed') return
     const interval = setInterval(async () => {
@@ -60,12 +66,55 @@ export default function Reviews() {
         setScrapeJob(status)
         if (status.status === 'completed') {
           loadReviews()
+          addNotification({
+            type: 'success',
+            title: `✅ Scrape completed — ${outletName(status.restaurant_id)}`,
+            sub: status.message || 'New reviews fetched successfully.',
+          })
+          clearInterval(interval)
+        } else if (status.status === 'failed') {
+          addNotification({
+            type: 'alert',
+            title: `❌ Scrape failed — ${outletName(status.restaurant_id)}`,
+            sub: status.message || 'The scraping job could not complete.',
+          })
           clearInterval(interval)
         }
       } catch { clearInterval(interval) }
     }, 2000)
     return () => clearInterval(interval)
   }, [scrapeJob, loadReviews])
+
+  // Poll NLP job — same pattern as scrape. This was previously treating the
+  // initial 202 "queued" response as the finished result; the backend
+  // actually processes sentiment/categorization in the background and only
+  // the status endpoint reflects real completion.
+  useEffect(() => {
+    if (!nlpJob || nlpJob.status === 'completed' || nlpJob.status === 'failed') return
+    const interval = setInterval(async () => {
+      try {
+        const status = await getNlpStatus(nlpJob.job_id)
+        setNlpJob(status)
+        if (status.status === 'completed') {
+          loadReviews()
+          addNotification({
+            type: 'success',
+            title: '🧠 NLP analysis complete',
+            sub: status.message || 'Reviews processed successfully.',
+          })
+          clearInterval(interval)
+        } else if (status.status === 'failed') {
+          addNotification({
+            type: 'alert',
+            title: '❌ NLP processing failed',
+            sub: status.message || 'The analysis job could not complete.',
+          })
+          clearInterval(interval)
+        }
+      } catch { clearInterval(interval) }
+    }, 3000)
+    return () => clearInterval(interval)
+  }, [nlpJob, loadReviews])
 
   const handleScrape = async () => {
     if (!selectedOutlet) return
@@ -82,11 +131,9 @@ export default function Reviews() {
 
   const handleNLP = async () => {
     setNlpLoading(true)
-    setNlpResult(null)
     try {
-      const result = await processNLP(selectedOutlet || undefined)
-      setNlpResult(result)
-      loadReviews()
+      const job = await processNLP(selectedOutlet || undefined)
+      setNlpJob(job) // {job_id, status: "pending", ...} — polling above takes over from here
     } catch (e) {
       console.error(e)
     } finally {
@@ -162,11 +209,13 @@ export default function Reviews() {
 
           <button
             onClick={handleNLP}
-            disabled={nlpLoading}
-            className="bg-violet-600 hover:bg-violet-700 text-white font-semibold px-4 py-2.5 rounded-xl flex items-center gap-2 text-sm transition-all"
+            disabled={nlpLoading || nlpJob?.status === 'pending' || nlpJob?.status === 'running'}
+            className="bg-violet-600 hover:bg-violet-700 text-white font-semibold px-4 py-2.5 rounded-xl flex items-center gap-2 text-sm transition-all disabled:opacity-60"
           >
-            {nlpLoading ? <Loader2 size={14} className="animate-spin" /> : <RefreshCw size={14} />}
-            Run NLP
+            {nlpLoading || nlpJob?.status === 'pending' || nlpJob?.status === 'running'
+              ? <Loader2 size={14} className="animate-spin" />
+              : <RefreshCw size={14} />}
+            {nlpJob?.status === 'running' ? 'Processing…' : nlpJob?.status === 'pending' ? 'Queued…' : 'Run NLP'}
           </button>
         </div>
 
@@ -177,15 +226,20 @@ export default function Reviews() {
             scrapeJob.status === 'failed'    ? 'bg-red-500/10 border-red-500/20 text-red-400' :
             'bg-brand-500/10 border-brand-500/20 text-brand-400'
           }`}>
-            {scrapeJob.status === 'running' && <Loader2 size={14} className="animate-spin" />}
+            {(scrapeJob.status === 'running' || scrapeJob.status === 'pending') && <Loader2 size={14} className="animate-spin" />}
             {scrapeJob.status === 'completed' && <CheckCircle2 size={14} />}
             <span>{scrapeJob.message} ({scrapeJob.status})</span>
           </div>
         )}
-        {nlpResult && (
-          <div className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm border bg-emerald-500/10 border-emerald-500/20 text-emerald-400">
-            <CheckCircle2 size={14} />
-            <span>{nlpResult.message}</span>
+        {nlpJob && (
+          <div className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm border ${
+            nlpJob.status === 'completed' ? 'bg-emerald-500/10 border-emerald-500/20 text-emerald-400' :
+            nlpJob.status === 'failed'    ? 'bg-red-500/10 border-red-500/20 text-red-400' :
+            'bg-violet-500/10 border-violet-500/20 text-violet-400'
+          }`}>
+            {(nlpJob.status === 'running' || nlpJob.status === 'pending') && <Loader2 size={14} className="animate-spin" />}
+            {nlpJob.status === 'completed' && <CheckCircle2 size={14} />}
+            <span>{nlpJob.message} ({nlpJob.status})</span>
           </div>
         )}
 

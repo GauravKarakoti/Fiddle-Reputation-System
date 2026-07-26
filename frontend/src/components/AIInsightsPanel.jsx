@@ -2,8 +2,10 @@ import { useState } from 'react'
 import { Sparkles, RefreshCw, Loader2, AlertCircle } from 'lucide-react'
 import ReactMarkdown from 'react-markdown'
 import { generateInsights } from '../api/client'
+import { useNotifications } from '../context/NotificationsContext'
 
 export default function AIInsightsPanel({ restaurantId, initialInsights = null }) {
+  const { addNotification } = useNotifications()
   const [insights, setInsights] = useState(initialInsights)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState(null)
@@ -18,8 +20,19 @@ export default function AIInsightsPanel({ restaurantId, initialInsights = null }
     try {
       const data = await generateInsights(restaurantId, forceRefresh)
       setInsights(data.insights)
+      addNotification({
+        type: 'info',
+        title: '🤖 AI Insights ready',
+        sub: 'New recommendations have been generated.',
+      })
     } catch (e) {
-      setError(e.response?.data?.detail || 'Failed to generate insights. Check your Gemini API key.')
+      const message = e.response?.data?.detail || 'Failed to generate insights. Check your Gemini API key.'
+      setError(message)
+      addNotification({
+        type: 'alert',
+        title: '❌ AI Insights generation failed',
+        sub: message,
+      })
     } finally {
       setLoading(false)
     }

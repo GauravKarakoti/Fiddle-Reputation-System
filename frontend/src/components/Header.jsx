@@ -1,13 +1,24 @@
 import { useState, useRef, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Bell, RefreshCw, Settings, LogOut, User2, ChevronRight, X, Shield, Moon, Globe2, Zap } from 'lucide-react'
+import { Bell, RefreshCw, Settings, LogOut, User2, ChevronRight, X, Shield, Moon, Globe2, Zap, Lock, Eye, EyeOff, CheckCircle2, AlertCircle } from 'lucide-react'
 import { useAuth } from '../context/AuthContext'
+import { usePreferences } from '../context/PreferencesContext'
+import { useNotifications, formatRelativeTime } from '../context/NotificationsContext'
+import { changePassword } from '../api/client'
 
 // ── Profile Settings Modal ─────────────────────────────────────────────────────
-function ProfileModal({ user, onClose }) {
-  const [tab, setTab] = useState('profile')
+function ProfileModal({ user, onClose, initialTab = 'profile' }) {
+  const [tab, setTab] = useState(initialTab)
   const [form, setForm] = useState({ name: user.name, email: user.email, role: user.role })
   const [saved, setSaved] = useState(false)
+  const { theme, toggleTheme, autoRefresh, toggleAutoRefresh } = usePreferences()
+  const { addNotification } = useNotifications()
+
+  const [pwForm, setPwForm] = useState({ current: '', next: '', confirm: '' })
+  const [showPw, setShowPw] = useState({ current: false, next: false, confirm: false })
+  const [pwSaving, setPwSaving] = useState(false)
+  const [pwError, setPwError] = useState(null)
+  const [pwSuccess, setPwSuccess] = useState(false)
 
   const initials = user.name
     ? user.name.split(' ').map(w => w[0]).slice(0, 2).join('').toUpperCase()
@@ -16,6 +27,41 @@ function ProfileModal({ user, onClose }) {
   const handleSave = () => {
     setSaved(true)
     setTimeout(() => setSaved(false), 2000)
+  }
+
+  const handleChangePassword = async (e) => {
+    e.preventDefault()
+    setPwError(null)
+    setPwSuccess(false)
+
+    if (pwForm.next.length < 8) {
+      setPwError('New password must be at least 8 characters')
+      return
+    }
+    if (pwForm.next !== pwForm.confirm) {
+      setPwError('New passwords do not match')
+      return
+    }
+    if (pwForm.next === pwForm.current) {
+      setPwError('New password must be different from your current password')
+      return
+    }
+
+    setPwSaving(true)
+    try {
+      await changePassword(pwForm.current, pwForm.next)
+      setPwSuccess(true)
+      setPwForm({ current: '', next: '', confirm: '' })
+      addNotification({
+        type: 'success',
+        title: '🔒 Password changed',
+        sub: 'Your account password was updated successfully.',
+      })
+    } catch (err) {
+      setPwError(err.response?.data?.detail || 'Failed to change password')
+    } finally {
+      setPwSaving(false)
+    }
   }
 
   return (
@@ -44,6 +90,7 @@ function ProfileModal({ user, onClose }) {
         <div className="flex border-b border-dark-500">
           {[
             { id: 'profile', label: 'Profile', icon: User2 },
+            { id: 'security', label: 'Security', icon: Shield },
             { id: 'preferences', label: 'Preferences', icon: Settings },
           ].map(({ id, label, icon: Icon }) => (
             <button
@@ -95,63 +142,152 @@ function ProfileModal({ user, onClose }) {
             </>
           )}
 
+          {tab === 'security' && (
+            <form onSubmit={handleChangePassword} className="space-y-4">
+              <div>
+                <p className="text-sm font-medium text-slate-200 mb-1">Change Password</p>
+                <p className="text-xs text-slate-500">
+                  Requires your current password to confirm it's really you.
+                </p>
+              </div>
+
+              {[
+                { key: 'current', label: 'Current Password' },
+                { key: 'next', label: 'New Password' },
+                { key: 'confirm', label: 'Confirm New Password' },
+              ].map(({ key, label }) => (
+                <div key={key}>
+                  <label className="text-xs text-slate-400 font-medium mb-1.5 block">{label}</label>
+                  <div className="relative">
+                    <input
+                      type={showPw[key] ? 'text' : 'password'}
+                      className="w-full bg-dark-600 border border-dark-400 rounded-xl px-3 py-2.5 pr-10 text-sm text-slate-200 outline-none focus:border-brand-500 transition-colors"
+                      value={pwForm[key]}
+                      onChange={e => setPwForm(f => ({ ...f, [key]: e.target.value }))}
+                      autoComplete={key === 'current' ? 'current-password' : 'new-password'}
+                      required
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowPw(s => ({ ...s, [key]: !s[key] }))}
+                      className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-500 hover:text-slate-300 transition-colors"
+                      tabIndex={-1}
+                    >
+                      {showPw[key] ? <EyeOff size={14} /> : <Eye size={14} />}
+                    </button>
+                  </div>
+                </div>
+              ))}
+
+              {pwError && (
+                <div className="flex items-start gap-2 p-3 rounded-lg bg-red-500/10 border border-red-500/20">
+                  <AlertCircle size={14} className="text-red-400 flex-shrink-0 mt-0.5" />
+                  <p className="text-xs text-red-300">{pwError}</p>
+                </div>
+              )}
+              {pwSuccess && (
+                <div className="flex items-start gap-2 p-3 rounded-lg bg-emerald-500/10 border border-emerald-500/20">
+                  <CheckCircle2 size={14} className="text-emerald-400 flex-shrink-0 mt-0.5" />
+                  <p className="text-xs text-emerald-300">Password changed successfully.</p>
+                </div>
+              )}
+
+              <button
+                type="submit"
+                disabled={pwSaving}
+                className="btn-primary w-full justify-center py-2.5 disabled:opacity-60"
+              >
+                <Lock size={14} />
+                {pwSaving ? 'Updating…' : 'Update Password'}
+              </button>
+            </form>
+          )}
+
           {tab === 'preferences' && (
             <div className="space-y-3">
+              {/* Dark Mode — real toggle, wired to PreferencesContext */}
+              <button
+                onClick={toggleTheme}
+                className="w-full flex items-center justify-between p-3.5 bg-dark-700/50 border border-dark-500 rounded-xl hover:border-brand-500/30 transition-colors text-left"
+              >
+                <div className="flex items-center gap-3">
+                  <div className="w-8 h-8 bg-dark-600 rounded-lg flex items-center justify-center">
+                    <Moon size={15} className="text-brand-400" />
+                  </div>
+                  <div>
+                    <p className="text-sm font-medium text-slate-200">Dark Mode</p>
+                    <p className="text-xs text-slate-500">{theme === 'dark' ? 'Currently on' : 'Currently off — light theme active'}</p>
+                  </div>
+                </div>
+                <div className={`w-10 h-5 rounded-full transition-colors ${theme === 'dark' ? 'bg-brand-500' : 'bg-dark-400'} flex items-center`}>
+                  <div className={`w-4 h-4 bg-white rounded-full shadow transition-transform ${theme === 'dark' ? 'translate-x-5' : 'translate-x-0.5'}`} />
+                </div>
+              </button>
+
+              {/* Auto-refresh Dashboard — real toggle, wired to PreferencesContext */}
+              <button
+                onClick={toggleAutoRefresh}
+                className="w-full flex items-center justify-between p-3.5 bg-dark-700/50 border border-dark-500 rounded-xl hover:border-brand-500/30 transition-colors text-left"
+              >
+                <div className="flex items-center gap-3">
+                  <div className="w-8 h-8 bg-dark-600 rounded-lg flex items-center justify-center">
+                    <Zap size={15} className="text-brand-400" />
+                  </div>
+                  <div>
+                    <p className="text-sm font-medium text-slate-200">Auto-refresh Dashboard</p>
+                    <p className="text-xs text-slate-500">Refresh data every 5 minutes</p>
+                  </div>
+                </div>
+                <div className={`w-10 h-5 rounded-full transition-colors ${autoRefresh ? 'bg-brand-500' : 'bg-dark-400'} flex items-center`}>
+                  <div className={`w-4 h-4 bg-white rounded-full shadow transition-transform ${autoRefresh ? 'translate-x-5' : 'translate-x-0.5'}`} />
+                </div>
+              </button>
+
+              {/* Not wired up yet — shown for context, not interactive */}
               {[
-                { icon: Moon, label: 'Dark Mode', sub: 'Always on — system default', enabled: true },
-                { icon: Globe2, label: 'Language', sub: 'English (India)', enabled: null },
-                { icon: Zap, label: 'Auto-refresh Dashboard', sub: 'Refresh data every 5 minutes', enabled: true },
-                { icon: Shield, label: 'Email Alerts', sub: 'Get notified on negative spikes', enabled: false },
-              ].map(({ icon: Icon, label, sub, enabled }) => (
-                <div key={label} className="flex items-center justify-between p-3.5 bg-dark-700/50 border border-dark-500 rounded-xl">
+                { icon: Globe2, label: 'Language', sub: 'English (India)' },
+                { icon: Shield, label: 'Email Alerts', sub: 'Get notified on negative spikes' },
+              ].map(({ icon: Icon, label, sub }) => (
+                <div key={label} className="flex items-center justify-between p-3.5 bg-dark-700/30 border border-dark-500/60 rounded-xl opacity-60">
                   <div className="flex items-center gap-3">
                     <div className="w-8 h-8 bg-dark-600 rounded-lg flex items-center justify-center">
-                      <Icon size={15} className="text-brand-400" />
+                      <Icon size={15} className="text-slate-500" />
                     </div>
                     <div>
-                      <p className="text-sm font-medium text-slate-200">{label}</p>
-                      <p className="text-xs text-slate-500">{sub}</p>
+                      <p className="text-sm font-medium text-slate-300">{label}</p>
+                      <p className="text-xs text-slate-500">{sub} · Coming soon</p>
                     </div>
                   </div>
-                  {enabled !== null && (
-                    <div className={`w-10 h-5 rounded-full transition-colors ${enabled ? 'bg-brand-500' : 'bg-dark-400'} flex items-center`}>
-                      <div className={`w-4 h-4 bg-white rounded-full shadow transition-transform ${enabled ? 'translate-x-5' : 'translate-x-0.5'}`} />
-                    </div>
-                  )}
                 </div>
               ))}
             </div>
           )}
         </div>
 
-        {/* Footer */}
-        <div className="px-6 py-4 border-t border-dark-500 flex gap-3">
-          <button onClick={onClose} className="btn-ghost flex-1 justify-center text-sm py-2">Cancel</button>
-          <button onClick={handleSave} className="btn-primary flex-1 justify-center text-sm py-2">
-            {saved ? '✓ Saved!' : 'Save Changes'}
-          </button>
-        </div>
+        {/* Footer — hidden on Security tab, which has its own submit button */}
+        {tab !== 'security' && (
+          <div className="px-6 py-4 border-t border-dark-500 flex gap-3">
+            <button onClick={onClose} className="btn-ghost flex-1 justify-center text-sm py-2">Cancel</button>
+            <button onClick={handleSave} className="btn-primary flex-1 justify-center text-sm py-2">
+              {saved ? '✓ Saved!' : 'Save Changes'}
+            </button>
+          </div>
+        )}
       </div>
     </div>
   )
 }
 
 // ── Main Header ────────────────────────────────────────────────────────────────
-export default function Header({ title, subtitle, onRefresh, notifications: initialNotifs }) {
-  const defaultNotifications = [
-    { id: 1, type: 'alert', title: '🔴 Negative spike at FF-Cyber', sub: 'Rating dropped to 3.2 — 12 negative reviews today', time: '2 min ago', unread: true },
-    { id: 2, type: 'success', title: '✅ Scrape completed — FF-CP', sub: '47 new reviews fetched from Google & Zomato', time: '18 min ago', unread: true },
-    { id: 3, type: 'info', title: '🤖 AI Insights ready', sub: 'New recommendations available for FF-Hauz Khas', time: '1 hr ago', unread: false },
-    { id: 4, type: 'info', title: '📊 Weekly report generated', sub: 'Your platform-wide digest is ready to view', time: 'Yesterday', unread: false },
-  ]
-
+export default function Header({ title, subtitle, onRefresh }) {
   const { user, logout } = useAuth()
   const navigate = useNavigate()
+  const { notifications, markAllRead, dismissNotification } = useNotifications()
 
-  const [notifications, setNotifications] = useState(initialNotifs?.length ? initialNotifs : defaultNotifications)
   const [showNotifications, setShowNotifications] = useState(false)
   const [showProfile, setShowProfile] = useState(false)
   const [showProfileModal, setShowProfileModal] = useState(false)
+  const [profileModalTab, setProfileModalTab] = useState('profile')
   const notifRef = useRef(null)
   const profileRef = useRef(null)
 
@@ -165,9 +301,6 @@ export default function Header({ title, subtitle, onRefresh, notifications: init
     : '?'
 
   const unreadCount = notifications.filter(n => n.unread).length
-
-  const markAllRead = () => setNotifications(ns => ns.map(n => ({ ...n, unread: false })))
-  const dismissNotif = (id) => setNotifications(ns => ns.filter(n => n.id !== id))
 
   const handleSignOut = () => {
     logout()
@@ -261,23 +394,16 @@ export default function Header({ title, subtitle, onRefresh, notifications: init
                       <div className="flex-1 min-w-0">
                         <p className="text-xs font-medium text-slate-200 leading-snug">{n.title}</p>
                         <p className="text-[11px] text-slate-500 mt-0.5 leading-snug">{n.sub}</p>
-                        <p className="text-[10px] text-slate-600 mt-1">{n.time}</p>
+                        <p className="text-[10px] text-slate-600 mt-1">{formatRelativeTime(n.time)}</p>
                       </div>
                       <button
-                        onClick={() => dismissNotif(n.id)}
+                        onClick={() => dismissNotification(n.id)}
                         className="text-slate-600 hover:text-slate-400 flex-shrink-0 mt-0.5 transition-colors"
                       >
                         <X size={12} />
                       </button>
                     </div>
                   ))}
-                </div>
-
-                {/* Footer */}
-                <div className="px-4 py-2.5 border-t border-dark-500 bg-dark-800/50">
-                  <button className="w-full text-center text-xs text-brand-400 hover:text-brand-300 transition-colors py-0.5">
-                    View all activity →
-                  </button>
                 </div>
               </div>
             )}
@@ -318,13 +444,16 @@ export default function Header({ title, subtitle, onRefresh, notifications: init
                 {/* Menu items */}
                 <div className="py-1">
                   <button
-                    onClick={() => { setShowProfile(false); setShowProfileModal(true) }}
+                    onClick={() => { setShowProfile(false); setProfileModalTab('profile'); setShowProfileModal(true) }}
                     className="w-full flex items-center gap-2.5 px-4 py-2.5 text-sm text-slate-300 hover:bg-dark-600/70 hover:text-slate-100 transition-colors text-left"
                   >
                     <User2 size={14} className="text-slate-500" />
                     Profile & Settings
                   </button>
-                  <button className="w-full flex items-center gap-2.5 px-4 py-2.5 text-sm text-slate-300 hover:bg-dark-600/70 hover:text-slate-100 transition-colors text-left">
+                  <button
+                    onClick={() => { setShowProfile(false); setProfileModalTab('security'); setShowProfileModal(true) }}
+                    className="w-full flex items-center gap-2.5 px-4 py-2.5 text-sm text-slate-300 hover:bg-dark-600/70 hover:text-slate-100 transition-colors text-left"
+                  >
                     <Shield size={14} className="text-slate-500" />
                     Account Security
                   </button>
@@ -346,7 +475,9 @@ export default function Header({ title, subtitle, onRefresh, notifications: init
       </header>
 
       {/* Profile modal */}
-      {showProfileModal && user && <ProfileModal user={user} onClose={() => setShowProfileModal(false)} />}
+      {showProfileModal && user && (
+        <ProfileModal user={user} onClose={() => setShowProfileModal(false)} initialTab={profileModalTab} />
+      )}
     </>
   )
 }

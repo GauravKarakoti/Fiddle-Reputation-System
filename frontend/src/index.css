@@ -129,3 +129,54 @@
 .animate-fade-in  { animation: fadeIn  0.5s ease-out both; }
 .animate-slide-up { animation: slideUp 0.4s ease-out both; }
 .animate-pulse-glow { animation: pulse-glow 2.5s ease-in-out infinite; }
+
+/* ── Light theme ──────────────────────────────────────────────────────────
+   Dark mode is the default and is completely untouched by anything below —
+   these rules only take effect when PreferencesContext sets
+   data-theme="light" on <html>. [data-theme="light"] + a class gives these
+   rules higher specificity than the plain Tailwind utility classes they
+   override; a few use !important anyway for safety.
+*/
+[data-theme="light"] body {
+  @apply bg-slate-50 text-slate-900;
+  background-image: none;
+}
+
+[data-theme="light"] .card,
+[data-theme="light"] .card-hover {
+  background: #ffffff;
+  border-color: #e2e8f0;
+  box-shadow: 0 1px 3px rgba(15, 23, 42, 0.08);
+}
+
+[data-theme="light"] .bg-dark-900 { background-color: #f8fafc !important; }
+[data-theme="light"] .bg-dark-800 { background-color: #ffffff !important; }
+[data-theme="light"] .bg-dark-700 { background-color: #ffffff !important; }
+[data-theme="light"] .bg-dark-600 { background-color: #f1f5f9 !important; }
+[data-theme="light"] .bg-dark-500 { background-color: #e2e8f0 !important; }
+[data-theme="light"] .bg-dark-400 { background-color: #cbd5e1 !important; }
+
+[data-theme="light"] .border-dark-500,
+[data-theme="light"] .border-dark-400 { border-color: #e2e8f0 !important; }
+
+[data-theme="light"] .text-slate-100 { color: #0f172a !important; }
+[data-theme="light"] .text-slate-200 { color: #1e293b !important; }
+[data-theme="light"] .text-slate-300 { color: #334155 !important; }
+[data-theme="light"] .text-slate-400 { color: #475569 !important; }
+[data-theme="light"] .text-slate-500 { color: #64748b !important; }
+[data-theme="light"] .text-slate-600 { color: #94a3b8 !important; }
+
+[data-theme="light"] .skeleton {
+  background: linear-gradient(90deg, #e2e8f0 25%, #f1f5f9 50%, #e2e8f0 75%);
+  background-size: 200% 100%;
+}
+
+[data-theme="light"] ::-webkit-scrollbar-track { background-color: #f1f5f9; }
+[data-theme="light"] ::-webkit-scrollbar-thumb { background-color: #cbd5e1; }
+
+[data-theme="light"] .recharts-tooltip-wrapper .recharts-default-tooltip {
+  background: rgba(255,255,255,0.98) !important;
+  border: 1px solid rgba(249,115,22,0.25) !important;
+}
+[data-theme="light"] .recharts-tooltip-item { color: #1e293b !important; }
+[data-theme="light"] .recharts-tooltip-label { color: #64748b !important; }

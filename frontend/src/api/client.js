@@ -39,6 +39,12 @@ export const loginUser = (data) =>
 export const getMe = () =>
   api.get('/api/auth/me').then(r => r.data)
 
+export const changePassword = (currentPassword, newPassword) =>
+  api.patch('/api/auth/change-password', {
+    current_password: currentPassword,
+    new_password: newPassword,
+  }).then(r => r.data)
+
 // ── Restaurants ───────────────────────────────────────────────────────────────
 export const getRestaurants = (params = {}) =>
   api.get('/api/restaurants', { params }).then(r => r.data)
@@ -63,6 +69,9 @@ export const processNLP = (restaurantId) =>
   api.post('/api/reviews/process-nlp', null, {
     params: { restaurant_id: restaurantId }
   }).then(r => r.data)
+
+export const getNlpStatus = (jobId) =>
+  api.get(`/api/reviews/process-nlp/status/${jobId}`).then(r => r.data)
 
 // ── Analytics ─────────────────────────────────────────────────────────────────
 export const getOverview = () =>

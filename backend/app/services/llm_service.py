@@ -259,7 +259,7 @@ def _fallback_insights(data: dict) -> str:
         "- Focus on top complaint categories above",
         "- Consider conducting a staff training session this week",
         "",
-        "_⚠️ Connect your Gemini API key for AI-powered detailed recommendations._",
+        
     ]
     return "\n".join(lines)
 

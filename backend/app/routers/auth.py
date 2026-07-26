@@ -3,7 +3,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from prisma import Prisma
 
 from app.database import get_db
-from app.schemas.auth import UserRegister, UserLogin, UserResponse, TokenResponse
+from app.schemas.auth import UserRegister, UserLogin, UserResponse, TokenResponse, ChangePasswordRequest
 from app.auth.security import hash_password, verify_password, create_access_token, get_current_user
 
 router = APIRouter(prefix="/api/auth", tags=["Auth"])
@@ -43,6 +43,31 @@ async def login(payload: UserLogin, db: Prisma = Depends(get_db)):
 async def get_me(user=Depends(get_current_user)):
     """Return the currently authenticated user, resolved from the bearer token."""
     return UserResponse(**user.dict())
+
+
+@router.patch("/change-password", status_code=200)
+async def change_password(
+    payload: ChangePasswordRequest,
+    user=Depends(get_current_user),
+    db: Prisma = Depends(get_db),
+):
+    """
+    Change the current user's password. Requires the correct current
+    password, so a stolen/left-open session alone isn't enough to lock the
+    real owner out — this is the standard "confirm your current password"
+    pattern.
+    """
+    if not verify_password(payload.current_password, user.password_hash):
+        raise HTTPException(status_code=401, detail="Current password is incorrect")
+
+    if verify_password(payload.new_password, user.password_hash):
+        raise HTTPException(status_code=400, detail="New password must be different from the current password")
+
+    await db.user.update(
+        where={"id": user.id},
+        data={"password_hash": hash_password(payload.new_password)},
+    )
+    return {"message": "Password changed successfully"}
 
 
 # Note on logout: JWTs are stateless, so there's nothing for the server to

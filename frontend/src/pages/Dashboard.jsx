@@ -9,6 +9,7 @@ import AIInsightsPanel from '../components/AIInsightsPanel'
 import {
   getOverview, getRatingTrend, getRestaurants, getReviews, getOutletComparison
 } from '../api/client'
+import { usePreferences } from '../context/PreferencesContext'
 
 function StatCard({ icon: Icon, label, value, sub, color = 'brand', trend }) {
   const colorMap = {
@@ -79,6 +80,7 @@ function OutletHealthRow({ outlet }) {
 }
 
 export default function Dashboard() {
+  const { autoRefresh } = usePreferences()
   const [overview, setOverview]       = useState(null)
   const [trend, setTrend]             = useState([])
   const [reviews, setReviews]         = useState([])
@@ -118,6 +120,14 @@ export default function Dashboard() {
   }, [])
 
   useEffect(() => { loadData() }, [loadData, refreshKey])
+
+  // Auto-refresh: re-trigger the same refresh the manual "Refresh" button
+  // uses, every 5 minutes, only while the preference is enabled.
+  useEffect(() => {
+    if (!autoRefresh) return
+    const interval = setInterval(() => setRefreshKey(k => k + 1), 5 * 60 * 1000)
+    return () => clearInterval(interval)
+  }, [autoRefresh])
 
   const handleOutletChange = async (outletId) => {
     setSelectedOutlet(outletId)
