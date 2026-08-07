@@ -1,0 +1,962 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>First Fiddle — Premium Tab UI</title>
+  <meta name="description" content="A premium tabbed UI component inspired by First Fiddle Restaurants' luxury brand aesthetic." />
+
+  <!-- Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Poppins:ital,wght@0,300;0,400;0,500;0,600;0,700;0,900;1,300;1,400&family=Bebas+Neue&display=swap" rel="stylesheet" />
+
+  <style>
+    /* ═══════════════════════════════════════════════
+       RESET & BASE
+    ═══════════════════════════════════════════════ */
+    *, *::before, *::after {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    :root {
+      --gold:          #FBA919;
+      --gold-light:    #ffd27a;
+      --gold-dim:      rgba(251, 169, 25, 0.18);
+      --gold-glow:     rgba(251, 169, 25, 0.12);
+      --bg:            #0a0a0c;
+      --bg-card:       #111114;
+      --bg-card-hover: #16161b;
+      --surface:       #1a1a22;
+      --border:        rgba(255, 255, 255, 0.07);
+      --border-gold:   rgba(251, 169, 25, 0.3);
+      --text-primary:  #f0ede8;
+      --text-secondary:#9e9b96;
+      --text-muted:    #5c5a56;
+      --radius:        16px;
+      --tab-ease:      cubic-bezier(0.65, 0, 0.35, 1);
+      --content-ease:  cubic-bezier(0.22, 1, 0.36, 1);
+    }
+
+    html { font-size: 16px; scroll-behavior: smooth; }
+
+    body {
+      font-family: 'Poppins', system-ui, sans-serif;
+      background-color: var(--bg);
+      color: var(--text-primary);
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 60px 20px 100px;
+      line-height: 1.6;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    /* Radial bg glow */
+    body::before {
+      content: '';
+      position: fixed;
+      top: -20%;
+      left: 50%;
+      transform: translateX(-50%);
+      width: 900px;
+      height: 600px;
+      background: radial-gradient(ellipse at center, rgba(251, 169, 25, 0.06) 0%, transparent 70%);
+      pointer-events: none;
+      z-index: 0;
+    }
+
+    /* ── Page Header ── */
+    .page-header {
+      text-align: center;
+      margin-bottom: 64px;
+      position: relative;
+      z-index: 1;
+    }
+
+    .brand-eyebrow {
+      font-family: 'Bebas Neue', sans-serif;
+      font-size: 11px;
+      letter-spacing: 0.4em;
+      color: var(--gold);
+      text-transform: uppercase;
+      margin-bottom: 14px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 12px;
+    }
+    .brand-eyebrow::before,
+    .brand-eyebrow::after {
+      content: '';
+      display: block;
+      width: 32px;
+      height: 1px;
+    }
+    .brand-eyebrow::before { background: linear-gradient(90deg, transparent, var(--gold)); }
+    .brand-eyebrow::after  { background: linear-gradient(90deg, var(--gold), transparent); }
+
+    .page-title {
+      font-family: 'Bebas Neue', sans-serif;
+      font-size: clamp(2.8rem, 6vw, 5rem);
+      font-weight: 400;
+      letter-spacing: 0.06em;
+      line-height: 1.05;
+      color: var(--text-primary);
+      text-transform: uppercase;
+    }
+    .page-title span { color: var(--gold); }
+
+    .page-subtitle {
+      font-size: 0.875rem;
+      color: var(--text-secondary);
+      font-weight: 300;
+      max-width: 460px;
+      margin: 16px auto 0;
+      letter-spacing: 0.02em;
+    }
+
+    /* ── Tabs Wrapper ── */
+    .tabs-section {
+      width: 100%;
+      max-width: 900px;
+      position: relative;
+      z-index: 1;
+    }
+
+    /* Tab Strip */
+    .tab-strip {
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      position: relative;
+      border-bottom: 1px solid var(--border);
+      padding: 0 8px;
+    }
+
+    /* Sliding gold underline */
+    .tab-indicator {
+      position: absolute;
+      bottom: -1px;
+      left: 0;
+      height: 2px;
+      background: linear-gradient(90deg, transparent, var(--gold), transparent);
+      border-radius: 2px;
+      transition: left 0.42s var(--tab-ease), width 0.42s var(--tab-ease);
+      box-shadow: 0 0 14px rgba(251, 169, 25, 0.6), 0 0 28px rgba(251, 169, 25, 0.25);
+      will-change: left, width;
+    }
+
+    /* Tab button */
+    .tab-btn {
+      position: relative;
+      background: none;
+      border: none;
+      cursor: pointer;
+      padding: 20px 28px;
+      font-family: 'Poppins', sans-serif;
+      font-size: 0.73rem;
+      font-weight: 500;
+      letter-spacing: 0.14em;
+      text-transform: uppercase;
+      color: var(--text-muted);
+      transition: color 0.3s var(--tab-ease);
+      white-space: nowrap;
+      outline: none;
+      user-select: none;
+    }
+
+    .tab-btn:hover  { color: var(--text-secondary); }
+    .tab-btn.active { color: var(--gold); font-weight: 700; }
+
+    .tab-btn:focus-visible {
+      outline: 2px solid var(--gold);
+      outline-offset: -4px;
+      border-radius: 6px;
+    }
+
+    .tab-btn .tab-icon {
+      display: inline-block;
+      margin-right: 7px;
+      font-size: 0.85em;
+      vertical-align: -1px;
+      opacity: 0.7;
+      transition: opacity 0.3s ease, transform 0.3s var(--tab-ease);
+    }
+    .tab-btn.active .tab-icon {
+      opacity: 1;
+      transform: translateY(-1px);
+    }
+
+    /* ── Panels ── */
+    .tab-panels {
+      padding-top: 40px;
+      position: relative;
+      min-height: 400px;
+    }
+
+    .tab-panel {
+      position: absolute;
+      top: 40px;
+      left: 0;
+      right: 0;
+      opacity: 0;
+      transform: translateY(18px);
+      transition:
+        opacity 0.45s var(--content-ease),
+        transform 0.45s var(--content-ease);
+      pointer-events: none;
+      will-change: opacity, transform;
+    }
+
+    .tab-panel.active {
+      opacity: 1;
+      transform: translateY(0);
+      pointer-events: auto;
+      position: relative;
+      top: auto;
+    }
+
+    /* ── Panel typography ── */
+    .panel-eyebrow {
+      font-size: 0.7rem;
+      font-weight: 600;
+      letter-spacing: 0.25em;
+      text-transform: uppercase;
+      color: var(--gold);
+      margin-bottom: 8px;
+    }
+
+    .panel-title {
+      font-family: 'Bebas Neue', sans-serif;
+      font-size: 2rem;
+      letter-spacing: 0.05em;
+      color: var(--text-primary);
+      margin-bottom: 10px;
+    }
+
+    .panel-desc {
+      font-size: 0.85rem;
+      color: var(--text-secondary);
+      font-weight: 300;
+      max-width: 560px;
+      line-height: 1.75;
+    }
+
+    .gold-divider {
+      width: 60px;
+      height: 2px;
+      background: linear-gradient(90deg, var(--gold), transparent);
+      border-radius: 2px;
+      margin: 12px 0 24px;
+    }
+
+    .panel-header { margin-bottom: 28px; }
+
+    /* ── Cards Grid ── */
+    .cards-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+      gap: 18px;
+    }
+
+    .content-card {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 28px 24px;
+      transition:
+        border-color 0.35s ease,
+        background 0.35s ease,
+        transform 0.35s var(--content-ease),
+        box-shadow 0.35s ease;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .content-card::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      height: 2px;
+      background: linear-gradient(90deg, transparent, var(--gold-dim), transparent);
+      opacity: 0;
+      transition: opacity 0.35s ease;
+    }
+
+    .content-card:hover {
+      border-color: var(--border-gold);
+      background: var(--bg-card-hover);
+      transform: translateY(-4px);
+      box-shadow: 0 20px 60px rgba(0,0,0,0.4), 0 0 30px var(--gold-glow);
+    }
+
+    .content-card:hover::before { opacity: 1; }
+
+    .card-icon {
+      width: 44px;
+      height: 44px;
+      border-radius: 10px;
+      background: var(--gold-dim);
+      border: 1px solid var(--border-gold);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin-bottom: 18px;
+      font-size: 1.2rem;
+    }
+
+    .card-title {
+      font-size: 0.95rem;
+      font-weight: 600;
+      color: var(--text-primary);
+      margin-bottom: 8px;
+      letter-spacing: 0.02em;
+    }
+
+    .card-body {
+      font-size: 0.8rem;
+      color: var(--text-secondary);
+      font-weight: 300;
+      line-height: 1.75;
+    }
+
+    .card-badge {
+      display: inline-block;
+      margin-top: 16px;
+      font-size: 0.65rem;
+      font-weight: 700;
+      letter-spacing: 0.18em;
+      text-transform: uppercase;
+      color: var(--gold);
+      background: var(--gold-dim);
+      border: 1px solid var(--border-gold);
+      border-radius: 20px;
+      padding: 4px 12px;
+    }
+
+    /* Featured card */
+    .content-card.featured {
+      grid-column: span 2;
+      display: flex;
+      gap: 32px;
+      align-items: flex-start;
+      background: linear-gradient(135deg, #14140e 0%, #111114 100%);
+      border-color: var(--border-gold);
+    }
+
+    .content-card.featured .card-icon {
+      width: 56px;
+      height: 56px;
+      flex-shrink: 0;
+      font-size: 1.5rem;
+    }
+
+    .content-card.featured .card-title { font-size: 1.05rem; }
+
+    .stat-row {
+      display: flex;
+      gap: 24px;
+      margin-top: 20px;
+      padding-top: 20px;
+      border-top: 1px solid var(--border);
+      flex-wrap: wrap;
+    }
+
+    .stat-item { display: flex; flex-direction: column; }
+
+    .stat-value {
+      font-family: 'Bebas Neue', sans-serif;
+      font-size: 1.8rem;
+      letter-spacing: 0.03em;
+      color: var(--gold);
+      line-height: 1;
+    }
+
+    .stat-label {
+      font-size: 0.65rem;
+      font-weight: 500;
+      letter-spacing: 0.15em;
+      text-transform: uppercase;
+      color: var(--text-muted);
+      margin-top: 4px;
+    }
+
+    /* ── Timeline ── */
+    .timeline {
+      display: flex;
+      flex-direction: column;
+      position: relative;
+      padding-left: 40px;
+    }
+
+    .timeline::before {
+      content: '';
+      position: absolute;
+      left: 10px;
+      top: 6px;
+      bottom: 0;
+      width: 1px;
+      background: linear-gradient(to bottom, var(--gold) 0%, transparent 100%);
+    }
+
+    .timeline-item {
+      position: relative;
+      padding-bottom: 36px;
+    }
+
+    .timeline-item::before {
+      content: '';
+      position: absolute;
+      left: -30px;
+      top: 6px;
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: var(--gold);
+      box-shadow: 0 0 10px rgba(251, 169, 25, 0.7);
+    }
+
+    .timeline-year {
+      font-family: 'Bebas Neue', sans-serif;
+      font-size: 0.9rem;
+      letter-spacing: 0.15em;
+      color: var(--gold);
+      margin-bottom: 4px;
+    }
+
+    .timeline-event {
+      font-size: 0.9rem;
+      font-weight: 600;
+      color: var(--text-primary);
+      margin-bottom: 4px;
+    }
+
+    .timeline-detail {
+      font-size: 0.78rem;
+      color: var(--text-secondary);
+      font-weight: 300;
+      max-width: 540px;
+    }
+
+    /* ── Franchise / Contact ── */
+    .contact-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 48px;
+      align-items: start;
+    }
+
+    .contact-info h3 {
+      font-family: 'Bebas Neue', sans-serif;
+      font-size: 1.6rem;
+      letter-spacing: 0.06em;
+      color: var(--text-primary);
+      margin-bottom: 14px;
+    }
+
+    .contact-info p {
+      font-size: 0.83rem;
+      color: var(--text-secondary);
+      font-weight: 300;
+      line-height: 1.8;
+      margin-bottom: 20px;
+    }
+
+    .contact-detail {
+      display: flex;
+      align-items: flex-start;
+      gap: 12px;
+      margin-bottom: 16px;
+    }
+
+    .detail-icon {
+      width: 36px;
+      height: 36px;
+      border-radius: 8px;
+      background: var(--gold-dim);
+      border: 1px solid var(--border-gold);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 0.9rem;
+      flex-shrink: 0;
+    }
+
+    .detail-label {
+      font-size: 0.68rem;
+      font-weight: 700;
+      letter-spacing: 0.15em;
+      text-transform: uppercase;
+      color: var(--text-muted);
+    }
+
+    .detail-value {
+      font-size: 0.83rem;
+      color: var(--text-primary);
+    }
+
+    /* Form */
+    .form-group {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      margin-bottom: 16px;
+    }
+
+    .form-label {
+      font-size: 0.68rem;
+      font-weight: 700;
+      letter-spacing: 0.15em;
+      text-transform: uppercase;
+      color: var(--text-muted);
+    }
+
+    .form-input,
+    .form-textarea {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 12px 16px;
+      font-family: 'Poppins', sans-serif;
+      font-size: 0.83rem;
+      color: var(--text-primary);
+      outline: none;
+      width: 100%;
+      transition:
+        border-color 0.3s ease,
+        box-shadow 0.3s ease,
+        background 0.3s ease;
+    }
+
+    .form-input:focus,
+    .form-textarea:focus {
+      border-color: var(--border-gold);
+      background: #1e1e26;
+      box-shadow: 0 0 0 3px var(--gold-glow);
+    }
+
+    .form-input::placeholder,
+    .form-textarea::placeholder { color: var(--text-muted); }
+
+    .form-textarea { resize: none; height: 100px; }
+
+    .btn-submit {
+      width: 100%;
+      padding: 14px 24px;
+      background: linear-gradient(135deg, #FBA919 0%, #f5920a 100%);
+      border: none;
+      border-radius: 10px;
+      font-family: 'Poppins', sans-serif;
+      font-size: 0.72rem;
+      font-weight: 700;
+      letter-spacing: 0.2em;
+      text-transform: uppercase;
+      color: #000;
+      cursor: pointer;
+      position: relative;
+      overflow: hidden;
+      transition:
+        transform 0.25s var(--tab-ease),
+        box-shadow 0.25s ease,
+        filter 0.25s ease;
+    }
+
+    .btn-submit::after {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background: linear-gradient(135deg, rgba(255,255,255,0.15) 0%, transparent 60%);
+      opacity: 0;
+      transition: opacity 0.3s ease;
+    }
+
+    .btn-submit:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 8px 30px rgba(251, 169, 25, 0.45);
+      filter: brightness(1.08);
+    }
+
+    .btn-submit:hover::after { opacity: 1; }
+    .btn-submit:active { transform: translateY(0); }
+
+    /* ── Responsive ── */
+    @media (max-width: 700px) {
+      body { padding: 40px 16px 80px; }
+
+      .tab-strip {
+        justify-content: flex-start;
+        overflow-x: auto;
+        -webkit-overflow-scrolling: touch;
+        scrollbar-width: none;
+      }
+      .tab-strip::-webkit-scrollbar { display: none; }
+
+      .tab-btn { padding: 16px 18px; font-size: 0.67rem; }
+
+      .content-card.featured {
+        grid-column: span 1;
+        flex-direction: column;
+        gap: 16px;
+      }
+
+      .cards-grid { grid-template-columns: 1fr; }
+      .contact-grid { grid-template-columns: 1fr; gap: 28px; }
+    }
+
+    /* Respect reduced-motion */
+    @media (prefers-reduced-motion: reduce) {
+      .tab-indicator, .tab-panel, .tab-btn, .content-card {
+        transition-duration: 0.01ms !important;
+      }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Page Header -->
+  <header class="page-header">
+    <p class="brand-eyebrow">First Fiddle Restaurants</p>
+    <h1 class="page-title">The <span>Fiddle</span> Experience</h1>
+    <p class="page-subtitle">20+ years of redefining casual and experiential dining across India.</p>
+  </header>
+
+  <!-- Tabs Section -->
+  <section class="tabs-section" aria-label="First Fiddle Tabs">
+
+    <div class="tab-strip" role="tablist">
+      <div class="tab-indicator" id="tabIndicator" aria-hidden="true"></div>
+
+      <button class="tab-btn active" id="tab-overview" role="tab"
+        aria-selected="true" aria-controls="panel-overview" data-tab="overview">
+        <span class="tab-icon">✦</span>Overview
+      </button>
+      <button class="tab-btn" id="tab-brands" role="tab"
+        aria-selected="false" aria-controls="panel-brands" data-tab="brands">
+        <span class="tab-icon">◈</span>Our Brands
+      </button>
+      <button class="tab-btn" id="tab-legacy" role="tab"
+        aria-selected="false" aria-controls="panel-legacy" data-tab="legacy">
+        <span class="tab-icon">◉</span>Legacy
+      </button>
+      <button class="tab-btn" id="tab-franchise" role="tab"
+        aria-selected="false" aria-controls="panel-franchise" data-tab="franchise">
+        <span class="tab-icon">⬡</span>Franchise
+      </button>
+    </div>
+
+    <div class="tab-panels">
+
+      <!-- Overview -->
+      <div class="tab-panel active" id="panel-overview" role="tabpanel" aria-labelledby="tab-overview">
+        <div class="panel-header">
+          <p class="panel-eyebrow">Who We Are</p>
+          <h2 class="panel-title">India's Leading Restaurant Group</h2>
+          <div class="gold-divider"></div>
+          <p class="panel-desc">First Fiddle Restaurants has been a pioneer in India's F&amp;B sector for over two decades — crafting unforgettable dining experiences that blend world-class cuisine with bespoke hospitality.</p>
+        </div>
+
+        <div class="cards-grid">
+          <div class="content-card featured">
+            <div class="card-icon">🏆</div>
+            <div>
+              <p class="card-title">20+ Years of Excellence</p>
+              <p class="card-body">From a single flagship to a nationwide portfolio, First Fiddle has redefined how India dines — setting the gold standard for atmosphere, service, and culinary artistry.</p>
+              <div class="stat-row">
+                <div class="stat-item"><span class="stat-value">20+</span><span class="stat-label">Years</span></div>
+                <div class="stat-item"><span class="stat-value">50+</span><span class="stat-label">Outlets</span></div>
+                <div class="stat-item"><span class="stat-value">10+</span><span class="stat-label">Brands</span></div>
+                <div class="stat-item"><span class="stat-value">100K+</span><span class="stat-label">Guests / Mo</span></div>
+              </div>
+            </div>
+          </div>
+
+          <div class="content-card">
+            <div class="card-icon">🌟</div>
+            <p class="card-title">Award-Winning Concepts</p>
+            <p class="card-body">Nationally recognised across multiple hospitality excellence awards for innovation, ambience, and guest satisfaction.</p>
+            <span class="card-badge">Award-Winner</span>
+          </div>
+
+          <div class="content-card">
+            <div class="card-icon">🍽️</div>
+            <p class="card-title">World-Class Cuisine</p>
+            <p class="card-body">From Pan-Asian to European, each brand delivers a handcrafted menu guided by master chefs and seasonal ingredients.</p>
+            <span class="card-badge">Premium Dining</span>
+          </div>
+
+          <div class="content-card">
+            <div class="card-icon">📍</div>
+            <p class="card-title">Pan-India Presence</p>
+            <p class="card-body">Strategically located across Delhi NCR, Mumbai, Bengaluru and expanding to Tier-2 cities — bringing luxury dining to every doorstep.</p>
+            <span class="card-badge">Nationwide</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Brands -->
+      <div class="tab-panel" id="panel-brands" role="tabpanel" aria-labelledby="tab-brands">
+        <div class="panel-header">
+          <p class="panel-eyebrow">Portfolio</p>
+          <h2 class="panel-title">Our Signature Brands</h2>
+          <div class="gold-divider"></div>
+          <p class="panel-desc">Each brand is a distinct culinary identity — a universe unto itself, united by First Fiddle's DNA of uncompromising quality.</p>
+        </div>
+
+        <div class="cards-grid">
+          <div class="content-card">
+            <div class="card-icon">🐉</div>
+            <p class="card-title">Dragonfly Experience</p>
+            <p class="card-body">A rooftop Pan-Asian masterpiece — where art, cuisine and nightlife converge under open skies.</p>
+            <span class="card-badge">Pan-Asian</span>
+          </div>
+          <div class="content-card">
+            <div class="card-icon">👑</div>
+            <p class="card-title">Lord of the Drinks</p>
+            <p class="card-body">An electrifying bar &amp; kitchen known for legendary cocktails, live music, and a vibe that never sleeps.</p>
+            <span class="card-badge">Bar &amp; Kitchen</span>
+          </div>
+          <div class="content-card">
+            <div class="card-icon">💎</div>
+            <p class="card-title">Bougie</p>
+            <p class="card-body">Delhi's most coveted address for luxury continental dining — intimate, opulent, and entirely unforgettable.</p>
+            <span class="card-badge">Fine Dining</span>
+          </div>
+          <div class="content-card">
+            <div class="card-icon">🌿</div>
+            <p class="card-title">Warehouse Café</p>
+            <p class="card-body">Industrial-chic décor meets farm-to-table philosophy. A daytime sanctuary for brunch lovers and coffee connoisseurs.</p>
+            <span class="card-badge">All-Day Café</span>
+          </div>
+          <div class="content-card">
+            <div class="card-icon">🎭</div>
+            <p class="card-title">Miso Sexy</p>
+            <p class="card-body">Playful Japanese-inspired dining with bold flavours, striking aesthetics, and an attitude as vibrant as the menu.</p>
+            <span class="card-badge">Japanese</span>
+          </div>
+          <div class="content-card">
+            <div class="card-icon">🔥</div>
+            <p class="card-title">Diablo</p>
+            <p class="card-body">Dark, dramatic, and devilishly good — an immersive Latin-inspired dining experience unlike any other.</p>
+            <span class="card-badge">Latin Fusion</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Legacy -->
+      <div class="tab-panel" id="panel-legacy" role="tabpanel" aria-labelledby="tab-legacy">
+        <div class="panel-header">
+          <p class="panel-eyebrow">Our Journey</p>
+          <h2 class="panel-title">Two Decades of Impact</h2>
+          <div class="gold-divider"></div>
+          <p class="panel-desc">From a bold vision to a nationwide legacy — the First Fiddle story is one of passion, perseverance, and perpetual reinvention.</p>
+        </div>
+
+        <div class="timeline">
+          <div class="timeline-item">
+            <p class="timeline-year">2002</p>
+            <p class="timeline-event">The First Note</p>
+            <p class="timeline-detail">Founded in Delhi with a single flagship property — a bold bet on experiential dining in India's nascent F&amp;B landscape.</p>
+          </div>
+          <div class="timeline-item">
+            <p class="timeline-year">2006</p>
+            <p class="timeline-event">Dragonfly Takes Flight</p>
+            <p class="timeline-detail">Launch of Dragonfly — India's first luxury rooftop Pan-Asian experience, instantly becoming Delhi's most coveted address.</p>
+          </div>
+          <div class="timeline-item">
+            <p class="timeline-year">2010</p>
+            <p class="timeline-event">Portfolio Expansion</p>
+            <p class="timeline-detail">Bougie, Lord of the Drinks, and Warehouse Café added to the portfolio, cementing First Fiddle as a multi-concept powerhouse.</p>
+          </div>
+          <div class="timeline-item">
+            <p class="timeline-year">2015</p>
+            <p class="timeline-event">National Recognition</p>
+            <p class="timeline-detail">Multiple national awards for innovation, ambience and guest satisfaction — setting benchmarks for the entire industry.</p>
+          </div>
+          <div class="timeline-item">
+            <p class="timeline-year">2020</p>
+            <p class="timeline-event">Resilience &amp; Reinvention</p>
+            <p class="timeline-detail">Navigated the pandemic with agility — pivoting to curated delivery, cloud kitchens and virtual dining without compromising quality.</p>
+          </div>
+          <div class="timeline-item">
+            <p class="timeline-year">2024+</p>
+            <p class="timeline-event">The Next Chapter</p>
+            <p class="timeline-detail">Aggressive expansion into Tier-2 cities, franchise scale-up, and two new brand concepts to capture the next generation of diners.</p>
+          </div>
+        </div>
+      </div>
+
+      <!-- Franchise -->
+      <div class="tab-panel" id="panel-franchise" role="tabpanel" aria-labelledby="tab-franchise">
+        <div class="panel-header">
+          <p class="panel-eyebrow">Partner With Us</p>
+          <h2 class="panel-title">Franchise Opportunity</h2>
+          <div class="gold-divider"></div>
+          <p class="panel-desc">Join India's most respected restaurant group and build your own legacy. First Fiddle provides end-to-end franchise support.</p>
+        </div>
+
+        <div class="contact-grid">
+          <div class="contact-info">
+            <h3>Why First Fiddle?</h3>
+            <p>Our franchise model is built on proven brand equity, operational excellence, and a relentless commitment to guest experience. When you partner with us, you're not just buying a restaurant — you're joining a movement.</p>
+
+            <div class="contact-detail">
+              <div class="detail-icon">📊</div>
+              <div>
+                <p class="detail-label">Investment Range</p>
+                <p class="detail-value">₹1 Cr — ₹4 Cr+</p>
+              </div>
+            </div>
+            <div class="contact-detail">
+              <div class="detail-icon">⏱️</div>
+              <div>
+                <p class="detail-label">ROI Timeline</p>
+                <p class="detail-value">18–36 months (brand-dependent)</p>
+              </div>
+            </div>
+            <div class="contact-detail">
+              <div class="detail-icon">🤝</div>
+              <div>
+                <p class="detail-label">Support</p>
+                <p class="detail-value">Training, Ops, Marketing &amp; Supply Chain</p>
+              </div>
+            </div>
+            <div class="contact-detail">
+              <div class="detail-icon">✉️</div>
+              <div>
+                <p class="detail-label">Enquiries</p>
+                <p class="detail-value">franchise@firstfiddle.in</p>
+              </div>
+            </div>
+          </div>
+
+          <form onsubmit="handleFormSubmit(event)">
+            <div class="form-group">
+              <label class="form-label" for="fname">Full Name</label>
+              <input class="form-input" id="fname" type="text" placeholder="Your full name" />
+            </div>
+            <div class="form-group">
+              <label class="form-label" for="femail">Email Address</label>
+              <input class="form-input" id="femail" type="email" placeholder="you@example.com" />
+            </div>
+            <div class="form-group">
+              <label class="form-label" for="fphone">Phone Number</label>
+              <input class="form-input" id="fphone" type="tel" placeholder="+91 98765 43210" />
+            </div>
+            <div class="form-group">
+              <label class="form-label" for="flocation">Preferred City</label>
+              <input class="form-input" id="flocation" type="text" placeholder="Delhi, Mumbai, Bengaluru…" />
+            </div>
+            <div class="form-group">
+              <label class="form-label" for="fmessage">Message</label>
+              <textarea class="form-textarea" id="fmessage" placeholder="Tell us about your vision…"></textarea>
+            </div>
+            <button class="btn-submit" type="submit">Submit Enquiry →</button>
+          </form>
+        </div>
+      </div>
+
+    </div><!-- /tab-panels -->
+  </section>
+
+  <script>
+    (function () {
+      const tabs      = document.querySelectorAll('.tab-btn');
+      const panels    = document.querySelectorAll('.tab-panel');
+      const indicator = document.getElementById('tabIndicator');
+
+      function moveIndicator(btn) {
+        const strip     = btn.closest('.tab-strip');
+        const stripRect = strip.getBoundingClientRect();
+        const btnRect   = btn.getBoundingClientRect();
+        indicator.style.left  = (btnRect.left - stripRect.left) + 'px';
+        indicator.style.width = btnRect.width + 'px';
+      }
+
+      function switchTab(targetId) {
+        const targetBtn   = document.querySelector('[data-tab="' + targetId + '"]');
+        const targetPanel = document.getElementById('panel-' + targetId);
+        if (!targetBtn || !targetPanel) return;
+
+        tabs.forEach(t => {
+          t.classList.remove('active');
+          t.setAttribute('aria-selected', 'false');
+        });
+        panels.forEach(p => p.classList.remove('active'));
+
+        targetBtn.classList.add('active');
+        targetBtn.setAttribute('aria-selected', 'true');
+
+        requestAnimationFrame(() => targetPanel.classList.add('active'));
+        moveIndicator(targetBtn);
+      }
+
+      tabs.forEach(function (btn) {
+        btn.addEventListener('click', function () {
+          switchTab(btn.dataset.tab);
+          btn.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'center' });
+        });
+
+        btn.addEventListener('keydown', function (e) {
+          const arr = Array.from(tabs);
+          const idx = arr.indexOf(btn);
+          if (e.key === 'ArrowRight') {
+            e.preventDefault();
+            const next = arr[(idx + 1) % arr.length];
+            next.focus();
+            switchTab(next.dataset.tab);
+          } else if (e.key === 'ArrowLeft') {
+            e.preventDefault();
+            const prev = arr[(idx - 1 + arr.length) % arr.length];
+            prev.focus();
+            switchTab(prev.dataset.tab);
+          }
+        });
+      });
+
+      /* Init indicator without transition */
+      (function init() {
+        const active = document.querySelector('.tab-btn.active');
+        if (!active) return;
+        indicator.style.transition = 'none';
+        moveIndicator(active);
+        requestAnimationFrame(function () {
+          indicator.style.transition = '';
+        });
+      }());
+
+      var resizeTimer;
+      window.addEventListener('resize', function () {
+        clearTimeout(resizeTimer);
+        resizeTimer = setTimeout(function () {
+          var active = document.querySelector('.tab-btn.active');
+          if (active) moveIndicator(active);
+        }, 100);
+      });
+    }());
+
+    function handleFormSubmit(e) {
+      e.preventDefault();
+      var btn      = e.target.querySelector('.btn-submit');
+      var original = btn.textContent;
+      btn.textContent = '✓ Enquiry Received';
+      btn.style.background = 'linear-gradient(135deg, #2ecc71 0%, #1aab5f 100%)';
+      btn.style.color      = '#fff';
+      btn.disabled         = true;
+      setTimeout(function () {
+        btn.textContent      = original;
+        btn.style.background = '';
+        btn.style.color      = '';
+        btn.disabled         = false;
+        e.target.reset();
+      }, 3000);
+    }
+  </script>
+
+</body>
+</html>

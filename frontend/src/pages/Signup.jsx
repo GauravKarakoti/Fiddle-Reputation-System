@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { useNavigate, Link } from 'react-router-dom'
-import { Utensils, Loader2 } from 'lucide-react'
+import { Utensils, Loader2, Clock } from 'lucide-react'
 import { useAuth } from '../context/AuthContext'
 
 export default function Signup() {
@@ -9,19 +9,45 @@ export default function Signup() {
   const [form, setForm] = useState({ name: '', email: '', password: '' })
   const [error, setError] = useState(null)
   const [loading, setLoading] = useState(false)
+  const [pendingMessage, setPendingMessage] = useState(null)
 
   const handleSubmit = async (e) => {
     e.preventDefault()
     setError(null)
     setLoading(true)
     try {
-      await register(form.name, form.email, form.password)
-      navigate('/', { replace: true })
+      const result = await register(form.name, form.email, form.password)
+      if (result.pending) {
+        // Normal case: account created, awaiting admin approval — show a
+        // confirmation screen instead of redirecting into the app, since
+        // there's no active session to redirect into yet.
+        setPendingMessage(result.message)
+      } else {
+        // Only happens for the very first user ever (auto-approved admin)
+        navigate('/', { replace: true })
+      }
     } catch (err) {
       setError(err.response?.data?.detail || 'Could not create account')
     } finally {
       setLoading(false)
     }
+  }
+
+  if (pendingMessage) {
+    return (
+      <div className="flex items-center justify-center h-screen bg-dark-900 px-4">
+        <div className="w-full max-w-sm card p-6 animate-slide-up text-center">
+          <div className="w-14 h-14 rounded-2xl bg-brand-500/10 border border-brand-500/20 flex items-center justify-center mx-auto mb-4">
+            <Clock size={22} className="text-brand-400" />
+          </div>
+          <p className="font-display font-bold text-slate-100 mb-2">Account Created</p>
+          <p className="text-sm text-slate-400 mb-6">{pendingMessage}</p>
+          <Link to="/login" className="btn-primary w-full justify-center py-2.5">
+            Back to Sign In
+          </Link>
+        </div>
+      </div>
+    )
   }
 
   return (

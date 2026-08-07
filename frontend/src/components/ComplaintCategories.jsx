@@ -4,13 +4,13 @@ import {
 } from 'recharts'
 
 const CATEGORY_COLORS = {
-  'Food Quality':   '#f97316',
-  'Service Delay':  '#ef4444',
-  'Staff Behavior': '#a855f7',
-  'Pricing':        '#eab308',
-  'Cleanliness':    '#06b6d4',
-  'Ambience':       '#10b981',
-  'Other':          '#64748b',
+  'Food Quality':   '#FAAF1D', // Brand Yellow
+  'Service Delay':  '#C16D32', // Warm amber-rust
+  'Staff Behavior': '#543721', // Lighter coffee
+  'Pricing':        '#D8CDB6', // Soft Linen variant
+  'Cleanliness':    '#687680', // Slate carbon
+  'Ambience':       '#A39B87', // Muted gold-gray
+  'Other':          '#4B545A', // Dark gray carbon
 }
 
 const CustomTooltip = ({ active, payload }) => {

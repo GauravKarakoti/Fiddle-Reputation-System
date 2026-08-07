@@ -1,8 +1,8 @@
 import { useState, useEffect, useCallback } from 'react'
-import { Filter, Play, Loader2, RefreshCw, CheckCircle2 } from 'lucide-react'
+import { Filter, Play, Loader2, RefreshCw, CheckCircle2, FileDown } from 'lucide-react'
 import Header from '../components/Header'
 import ReviewFeed from '../components/ReviewFeed'
-import { getRestaurants, getReviews, triggerScrape, getScrapeStatus, processNLP, getNlpStatus } from '../api/client'
+import { getRestaurants, getReviews, triggerScrape, getScrapeStatus, processNLP, getNlpStatus, downloadReportPDF } from '../api/client'
 import { useNotifications } from '../context/NotificationsContext'
 
 const SENTIMENT_OPTIONS = ['', 'positive', 'neutral', 'negative']
@@ -25,6 +25,9 @@ export default function Reviews() {
   const [scrapeLoading, setScrapeLoading] = useState(false)
   const [nlpJob, setNlpJob]           = useState(null)
   const [nlpLoading, setNlpLoading]   = useState(false)
+
+  const [reportPeriod, setReportPeriod] = useState('weekly')
+  const [reportLoading, setReportLoading] = useState(false)
 
   const PAGE_SIZE = 20
 
@@ -68,14 +71,14 @@ export default function Reviews() {
           loadReviews()
           addNotification({
             type: 'success',
-            title: `✅ Scrape completed — ${outletName(status.restaurant_id)}`,
+            title: `Scrape completed — ${outletName(status.restaurant_id)}`,
             sub: status.message || 'New reviews fetched successfully.',
           })
           clearInterval(interval)
         } else if (status.status === 'failed') {
           addNotification({
             type: 'alert',
-            title: `❌ Scrape failed — ${outletName(status.restaurant_id)}`,
+            title: `Scrape failed — ${outletName(status.restaurant_id)}`,
             sub: status.message || 'The scraping job could not complete.',
           })
           clearInterval(interval)
@@ -99,14 +102,14 @@ export default function Reviews() {
           loadReviews()
           addNotification({
             type: 'success',
-            title: '🧠 NLP analysis complete',
+            title: 'NLP analysis complete',
             sub: status.message || 'Reviews processed successfully.',
           })
           clearInterval(interval)
         } else if (status.status === 'failed') {
           addNotification({
             type: 'alert',
-            title: '❌ NLP processing failed',
+            title: 'NLP processing failed',
             sub: status.message || 'The analysis job could not complete.',
           })
           clearInterval(interval)
@@ -141,6 +144,28 @@ export default function Reviews() {
     }
   }
 
+  const handleDownloadReport = async () => {
+    if (!selectedOutlet) return
+    setReportLoading(true)
+    try {
+      await downloadReportPDF(selectedOutlet, reportPeriod)
+      addNotification({
+        type: 'success',
+        title: 'Report downloaded',
+        sub: `${outletName(selectedOutlet)} — ${reportPeriod} report saved as PDF.`,
+      })
+    } catch (e) {
+      console.error(e)
+      addNotification({
+        type: 'alert',
+        title: 'Report generation failed',
+        sub: e.response?.data?.detail || 'Could not generate the PDF report.',
+      })
+    } finally {
+      setReportLoading(false)
+    }
+  }
+
   const totalPages = Math.ceil(total / PAGE_SIZE)
 
   return (
@@ -149,74 +174,101 @@ export default function Reviews() {
 
       <div className="flex-1 overflow-y-auto p-6 space-y-5">
         {/* Controls */}
-        <div className="card p-4 flex flex-wrap gap-3 items-end">
-          {/* Outlet selector */}
-          <div className="flex flex-col gap-1 min-w-48">
-            <label className="text-xs text-slate-500">Outlet</label>
-            <select
-              className="bg-dark-600 border border-dark-400 rounded-xl px-3 py-2 text-sm text-slate-200 outline-none focus:border-brand-500"
-              value={selectedOutlet}
-              onChange={e => { setSelectedOutlet(e.target.value); setPage(1) }}
-            >
-              <option value="">— Select outlet —</option>
-              {restaurants.map(r => (
-                <option key={r.id} value={r.id}>{r.name}</option>
-              ))}
-            </select>
+        <div className="card p-5 space-y-4">
+          {/* Filters Row */}
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+            {/* Outlet selector */}
+            <div className="flex flex-col gap-1.5">
+              <label className="text-[10px] font-bold uppercase tracking-widest text-slate-500 pl-1">Outlet</label>
+              <select
+                className="w-full bg-dark-800 border border-dark-600 rounded-xl px-3 py-2 text-xs font-bold uppercase tracking-wider text-slate-200 outline-none focus:border-brand-500 cursor-pointer"
+                value={selectedOutlet}
+                onChange={e => { setSelectedOutlet(e.target.value); setPage(1) }}
+              >
+                <option value="">— Select outlet —</option>
+                {restaurants.map(r => (
+                  <option key={r.id} value={r.id}>{r.name}</option>
+                ))}
+              </select>
+            </div>
+
+            {/* Platform filter */}
+            <div className="flex flex-col gap-1.5">
+              <label className="text-[10px] font-bold uppercase tracking-widest text-slate-500 pl-1">Platform</label>
+              <select
+                className="w-full bg-dark-800 border border-dark-600 rounded-xl px-3 py-2 text-xs font-bold uppercase tracking-wider text-slate-200 outline-none focus:border-brand-500 cursor-pointer"
+                value={source}
+                onChange={e => { setSource(e.target.value); setPage(1) }}
+              >
+                {SOURCE_OPTIONS.map(s => (
+                  <option key={s} value={s}>{s ? s.charAt(0).toUpperCase() + s.slice(1) : 'All Platforms'}</option>
+                ))}
+              </select>
+            </div>
+
+            {/* Sentiment filter */}
+            <div className="flex flex-col gap-1.5">
+              <label className="text-[10px] font-bold uppercase tracking-widest text-slate-500 pl-1">Sentiment</label>
+              <select
+                className="w-full bg-dark-800 border border-dark-600 rounded-xl px-3 py-2 text-xs font-bold uppercase tracking-wider text-slate-200 outline-none focus:border-brand-500 cursor-pointer"
+                value={sentiment}
+                onChange={e => { setSentiment(e.target.value); setPage(1) }}
+              >
+                {SENTIMENT_OPTIONS.map(s => (
+                  <option key={s} value={s}>{s ? s.charAt(0).toUpperCase() + s.slice(1) : 'All Sentiments'}</option>
+                ))}
+              </select>
+            </div>
           </div>
 
-          {/* Source filter */}
-          <div className="flex flex-col gap-1">
-            <label className="text-xs text-slate-500">Platform</label>
-            <select
-              className="bg-dark-600 border border-dark-400 rounded-xl px-3 py-2 text-sm text-slate-200 outline-none focus:border-brand-500"
-              value={source}
-              onChange={e => { setSource(e.target.value); setPage(1) }}
-            >
-              {SOURCE_OPTIONS.map(s => (
-                <option key={s} value={s}>{s ? s.charAt(0).toUpperCase() + s.slice(1) : 'All Platforms'}</option>
-              ))}
-            </select>
+          {/* Actions Row */}
+          <div className="flex flex-wrap items-center justify-between gap-3 pt-3 border-t border-dark-600/30">
+            <div className="flex items-center gap-3">
+              <button
+                onClick={handleScrape}
+                disabled={!selectedOutlet || scrapeLoading || scrapeJob?.status === 'running'}
+                className="btn-primary text-xs font-bold uppercase tracking-wider"
+              >
+                {scrapeLoading || scrapeJob?.status === 'running'
+                  ? <Loader2 size={14} className="animate-spin" />
+                  : <Play size={14} />}
+                {scrapeJob?.status === 'running' ? 'Scraping…' : 'Scrape Reviews'}
+              </button>
+
+              <button
+                onClick={handleNLP}
+                disabled={nlpLoading || nlpJob?.status === 'pending' || nlpJob?.status === 'running'}
+                className="bg-violet-600 hover:bg-violet-500 hover:shadow-[0_0_20px_rgba(139,92,246,0.3)] text-white font-bold uppercase tracking-wider text-xs px-4 py-2.5 rounded-xl transition-all duration-300 flex items-center gap-2 disabled:opacity-60"
+              >
+                {nlpLoading || nlpJob?.status === 'pending' || nlpJob?.status === 'running'
+                  ? <Loader2 size={14} className="animate-spin" />
+                  : <RefreshCw size={14} />}
+                {nlpJob?.status === 'running' ? 'Processing…' : nlpJob?.status === 'pending' ? 'Queued…' : 'Run NLP'}
+              </button>
+            </div>
+
+            <div className="flex items-center gap-3">
+              <select
+                className="bg-dark-800 border border-dark-600 rounded-xl px-3 py-2 text-xs font-bold uppercase tracking-wider text-slate-200 outline-none focus:border-brand-500 cursor-pointer h-[38px]"
+                value={reportPeriod}
+                onChange={e => setReportPeriod(e.target.value)}
+              >
+                <option value="daily">Daily Report</option>
+                <option value="weekly">Weekly Report</option>
+                <option value="monthly">Monthly Report</option>
+              </select>
+
+              <button
+                onClick={handleDownloadReport}
+                disabled={!selectedOutlet || reportLoading}
+                className="btn-ghost border border-dark-500/60 font-bold uppercase tracking-wider text-xs px-4 py-2.5 rounded-xl transition-all duration-300 flex items-center gap-2 disabled:opacity-60 h-[38px]"
+                title={!selectedOutlet ? 'Select an outlet first' : 'Download PDF report'}
+              >
+                {reportLoading ? <Loader2 size={14} className="animate-spin" /> : <FileDown size={14} />}
+                {reportLoading ? 'Generating…' : 'Download PDF'}
+              </button>
+            </div>
           </div>
-
-          {/* Sentiment filter */}
-          <div className="flex flex-col gap-1">
-            <label className="text-xs text-slate-500">Sentiment</label>
-            <select
-              className="bg-dark-600 border border-dark-400 rounded-xl px-3 py-2 text-sm text-slate-200 outline-none focus:border-brand-500"
-              value={sentiment}
-              onChange={e => { setSentiment(e.target.value); setPage(1) }}
-            >
-              {SENTIMENT_OPTIONS.map(s => (
-                <option key={s} value={s}>{s ? s.charAt(0).toUpperCase() + s.slice(1) : 'All Sentiments'}</option>
-              ))}
-            </select>
-          </div>
-
-          <div className="flex-1" />
-
-          {/* Action buttons */}
-          <button
-            onClick={handleScrape}
-            disabled={!selectedOutlet || scrapeLoading || scrapeJob?.status === 'running'}
-            className="btn-primary"
-          >
-            {scrapeLoading || scrapeJob?.status === 'running'
-              ? <Loader2 size={14} className="animate-spin" />
-              : <Play size={14} />}
-            {scrapeJob?.status === 'running' ? 'Scraping…' : 'Scrape Reviews'}
-          </button>
-
-          <button
-            onClick={handleNLP}
-            disabled={nlpLoading || nlpJob?.status === 'pending' || nlpJob?.status === 'running'}
-            className="bg-violet-600 hover:bg-violet-700 text-white font-semibold px-4 py-2.5 rounded-xl flex items-center gap-2 text-sm transition-all disabled:opacity-60"
-          >
-            {nlpLoading || nlpJob?.status === 'pending' || nlpJob?.status === 'running'
-              ? <Loader2 size={14} className="animate-spin" />
-              : <RefreshCw size={14} />}
-            {nlpJob?.status === 'running' ? 'Processing…' : nlpJob?.status === 'pending' ? 'Queued…' : 'Run NLP'}
-          </button>
         </div>
 
         {/* Status messages */}

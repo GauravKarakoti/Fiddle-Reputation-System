@@ -8,24 +8,24 @@ export default {
     extend: {
       colors: {
         brand: {
-          50:  '#fff7ed',
-          100: '#ffedd5',
-          200: '#fed7aa',
-          300: '#fdba74',
-          400: '#fb923c',
-          500: '#f97316',
-          600: '#ea580c',
-          700: '#c2410c',
-          800: '#9a3412',
-          900: '#7c2d12',
+          50:  '#fff8e6',
+          100: '#ffefc0',
+          200: '#ffe399',
+          300: '#ffd466',
+          400: '#fbc433',
+          500: '#FAAF1D', // Brand Yellow
+          600: '#d4920f',
+          700: '#a7710a',
+          800: '#7a5206',
+          900: '#341E0D', // Dark Coffee
         },
         dark: {
-          900: '#0a0a0f',
-          800: '#12121a',
-          700: '#1a1a27',
-          600: '#22223a',
-          500: '#2d2d4e',
-          400: '#3d3d66',
+          900: '#181b1d', // Slightly deeper black-carbon
+          800: '#202528', // Carbon Black
+          700: '#282e32',
+          600: '#31383d',
+          500: '#465057',
+          400: '#5c6972',
         }
       },
       fontFamily: {
@@ -33,15 +33,16 @@ export default {
         display: ['Outfit', 'Inter', 'sans-serif'],
       },
       backgroundImage: {
-        'gradient-brand': 'linear-gradient(135deg, #f97316 0%, #ea580c 50%, #c2410c 100%)',
-        'gradient-dark': 'linear-gradient(135deg, #12121a 0%, #1a1a27 100%)',
-        'gradient-card': 'linear-gradient(145deg, rgba(26,26,39,0.8) 0%, rgba(34,34,58,0.6) 100%)',
+        'gradient-brand': 'linear-gradient(135deg, #FAAF1D 0%, #341E0D 100%)',
+        'gradient-dark': 'linear-gradient(180deg, #202528 0%, #181b1d 100%)',
+        'gradient-card': 'linear-gradient(145deg, rgba(32, 37, 40, 0.9) 0%, rgba(24, 28, 30, 0.7) 100%)',
       },
       boxShadow: {
-        'glow-brand': '0 0 20px rgba(249,115,22,0.3)',
-        'glow-green': '0 0 20px rgba(34,197,94,0.3)',
-        'glow-red': '0 0 20px rgba(239,68,68,0.3)',
-        'card': '0 4px 24px rgba(0,0,0,0.4)',
+        'glow-brand': '0 0 20px rgba(250, 175, 29, 0.35)',
+        'glow-orange': '0 0 25px rgba(250, 175, 29, 0.25)',
+        'glow-green': '0 0 20px rgba(16,185,129,0.25)',
+        'glow-red': '0 0 20px rgba(239,68,68,0.25)',
+        'card': '0 10px 40px -10px rgba(0,0,0,0.5)',
       },
       animation: {
         'fade-in': 'fadeIn 0.5s ease-out',

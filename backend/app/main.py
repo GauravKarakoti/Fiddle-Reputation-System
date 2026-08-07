@@ -10,7 +10,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from app.config import get_settings
 from app.database import db
-from app.routers import restaurants, reviews, analytics, insights, auth
+from app.routers import restaurants, reviews, analytics, insights, auth, reports, chat
 
 # ── Logging ───────────────────────────────────────────────────────────────────
 logging.basicConfig(
@@ -62,6 +62,8 @@ app.include_router(restaurants.router)
 app.include_router(reviews.router)
 app.include_router(analytics.router)
 app.include_router(insights.router)
+app.include_router(reports.router)
+app.include_router(chat.router)
 
 
 # ── Health check ──────────────────────────────────────────────────────────────

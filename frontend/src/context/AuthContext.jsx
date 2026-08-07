@@ -37,9 +37,15 @@ export function AuthProvider({ children }) {
 
   const register = async (name, email, password) => {
     const data = await registerUser({ name, email, password })
-    localStorage.setItem(AUTH_TOKEN_KEY, data.access_token)
-    setUser(data.user)
-    return data.user
+    // Two possible shapes from the backend:
+    // - pending: true, no access_token  -> normal case, awaiting admin approval
+    // - pending: false, access_token set -> only the very first user ever
+    //   (auto-approved as admin so someone can approve everyone else)
+    if (!data.pending && data.access_token) {
+      localStorage.setItem(AUTH_TOKEN_KEY, data.access_token)
+      setUser(data.user)
+    }
+    return data
   }
 
   const logout = () => {

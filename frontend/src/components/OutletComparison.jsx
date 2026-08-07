@@ -61,7 +61,7 @@ export default function OutletComparison({ data = [] }) {
               tickLine={false}
             />
             <Tooltip content={<CustomTooltip />} cursor={{ fill: 'rgba(255,255,255,0.04)' }} />
-            <Bar dataKey="avg_rating" name="Avg Rating" fill="#f97316" radius={[6, 6, 0, 0]} maxBarSize={40}>
+            <Bar dataKey="avg_rating" name="Avg Rating" fill="#FAAF1D" radius={[6, 6, 0, 0]} maxBarSize={40}>
               <LabelList dataKey="avg_rating" position="top" style={{ fill: '#94a3b8', fontSize: 10 }} />
             </Bar>
           </BarChart>
@@ -87,7 +87,7 @@ export default function OutletComparison({ data = [] }) {
             />
             <Tooltip content={<CustomTooltip />} cursor={{ fill: 'rgba(255,255,255,0.04)' }} />
             <Legend wrapperStyle={{ color: '#94a3b8', fontSize: '11px' }} iconType="circle" iconSize={7} />
-            <Bar dataKey="positive" name="Positive" stackId="a" fill="#10b981" />
+            <Bar dataKey="positive" name="Positive" stackId="a" fill="#FAAF1D" />
             <Bar dataKey="neutral"  name="Neutral"  stackId="a" fill="#64748b" />
             <Bar dataKey="negative" name="Negative" stackId="a" fill="#ef4444" radius={[6, 6, 0, 0]} />
           </BarChart>

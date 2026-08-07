@@ -45,6 +45,16 @@ export const changePassword = (currentPassword, newPassword) =>
     new_password: newPassword,
   }).then(r => r.data)
 
+// ── Admin: signup approval ──────────────────────────────────────────────────
+export const getPendingUsers = () =>
+  api.get('/api/auth/pending-users').then(r => r.data)
+
+export const approveUser = (userId) =>
+  api.post(`/api/auth/approve/${userId}`).then(r => r.data)
+
+export const rejectUser = (userId) =>
+  api.delete(`/api/auth/reject/${userId}`).then(r => r.data)
+
 // ── Restaurants ───────────────────────────────────────────────────────────────
 export const getRestaurants = (params = {}) =>
   api.get('/api/restaurants', { params }).then(r => r.data)
@@ -54,6 +64,12 @@ export const getRestaurant = (id) =>
 
 export const createRestaurant = (data) =>
   api.post('/api/restaurants', data).then(r => r.data)
+
+export const updateRestaurant = (id, data) =>
+  api.patch(`/api/restaurants/${id}`, data).then(r => r.data)
+
+export const deleteRestaurant = (id) =>
+  api.delete(`/api/restaurants/${id}`).then(r => r.data)
 
 // ── Reviews ───────────────────────────────────────────────────────────────────
 export const getReviews = (restaurantId, params = {}) =>
@@ -97,8 +113,33 @@ export const generateInsights = (restaurantId, forceRefresh = false) =>
 export const getInsights = (restaurantId) =>
   api.get(`/api/insights/${restaurantId}`).then(r => r.data)
 
+export const sendChatMessage = (message, restaurantId, history = []) =>
+  api.post('/api/chat', {
+    message,
+    restaurant_id: restaurantId || undefined,
+    history,
+  }).then(r => r.data)
+
+// ── Reports ───────────────────────────────────────────────────────────────────
+export const downloadReportPDF = async (restaurantId, period) => {
+  const response = await api.get(`/api/reports/${restaurantId}/pdf`, {
+    params: { period },
+    responseType: 'blob',
+  })
+  const blob = new Blob([response.data], { type: 'application/pdf' })
+  const url = window.URL.createObjectURL(blob)
+  const a = document.createElement('a')
+  a.href = url
+  a.download = `first-fiddle-report-${period}-${new Date().toISOString().slice(0, 10)}.pdf`
+  document.body.appendChild(a)
+  a.click()
+  a.remove()
+  window.URL.revokeObjectURL(url)
+}
+
 // ── Seed ──────────────────────────────────────────────────────────────────────
 export const seedDemo = () =>
   api.post('/api/seed').then(r => r.data)
 
 export default api
+

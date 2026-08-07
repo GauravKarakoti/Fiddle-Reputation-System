@@ -90,3 +90,17 @@ async def get_current_user(
             detail="User not found or inactive",
         )
     return user
+
+
+async def get_current_admin_user(user=Depends(get_current_user)):
+    """
+    FastAPI dependency for admin-only routes (e.g. approving pending
+    signups). Layers on top of get_current_user, so it also requires a
+    valid token first.
+    """
+    if user.role != "admin":
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Admin access required",
+        )
+    return user
