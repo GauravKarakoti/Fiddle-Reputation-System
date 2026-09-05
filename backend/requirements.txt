@@ -22,8 +22,6 @@ fake-useragent==1.5.1
 
 # NLP / ML
 transformers==4.41.2
-torch==2.3.0
-tokenizers==0.19.1
 sentencepiece==0.2.0
 scipy==1.13.0
 numpy==1.26.4
@@ -41,3 +39,4 @@ python-jose[cryptography]==3.3.0
 passlib[bcrypt]==1.7.4
 tenacity==8.3.0
 structlog==24.1.0
+torch==2.3.0 --index-url https://download.pytorch.org/whl/cpu 
