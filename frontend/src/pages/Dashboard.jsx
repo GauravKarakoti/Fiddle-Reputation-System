@@ -6,7 +6,7 @@ import ComplaintCategories from '../components/ComplaintCategories'
 import ReviewFeed from '../components/ReviewFeed'
 import AIInsightsPanel from '../components/AIInsightsPanel'
 import {
-  getOverview, getRatingTrend, getRestaurants, getReviews, getOutletComparison
+  getOverview, getRatingTrend, getRestaurants, getReviews, getOutletComparison, getOutletAnalytics
 } from '../api/client'
 import { usePreferences } from '../context/PreferencesContext'
 
@@ -86,14 +86,15 @@ function OutletHealthRow({ outlet }) {
 
 export default function Dashboard() {
   const { autoRefresh } = usePreferences()
-  const [overview, setOverview]       = useState(null)
-  const [trend, setTrend]             = useState([])
-  const [reviews, setReviews]         = useState([])
+  const [overview, setOverview]         = useState(null)
+  const [outletAnalytics, setOutletAnalytics] = useState(null)
+  const [trend, setTrend]               = useState([])
+  const [reviews, setReviews]           = useState([])
   const [restaurants, setRestaurants] = useState([])
-  const [outlets, setOutlets]         = useState([])
+  const [outlets, setOutlets]           = useState([])
   const [selectedOutlet, setSelectedOutlet] = useState(null)
-  const [loading, setLoading]         = useState(true)
-  const [refreshKey, setRefreshKey]   = useState(0)
+  const [loading, setLoading]           = useState(true)
+  const [refreshKey, setRefreshKey]     = useState(0)
 
   const loadData = useCallback(async () => {
     setLoading(true)
@@ -110,10 +111,12 @@ export default function Dashboard() {
       if (rests.items?.length) {
         const firstId = rests.items[0].id
         setSelectedOutlet(firstId)
-        const [t, r] = await Promise.all([
+        const [analytics, t, r] = await Promise.all([
+          getOutletAnalytics(firstId, '30d'),
           getRatingTrend(firstId, '90d'),
           getReviews(firstId, { page_size: 10 }),
         ])
+        setOutletAnalytics(analytics)
         setTrend(t.trend || [])
         setReviews(r.items || [])
       }
@@ -134,21 +137,26 @@ export default function Dashboard() {
 
   const handleOutletChange = async (outletId) => {
     setSelectedOutlet(outletId)
-    if (!outletId) return
-    const [t, r] = await Promise.all([
+    if (!outletId) {
+      setOutletAnalytics(null)
+      return
+    }
+    const [analytics, t, r] = await Promise.all([
+      getOutletAnalytics(outletId, '30d'),
       getRatingTrend(outletId, '90d'),
       getReviews(outletId, { page_size: 10 }),
     ])
+    setOutletAnalytics(analytics)
     setTrend(t.trend || [])
     setReviews(r.items || [])
   }
 
-  const sentTotal = Object.values(overview?.sentiment_counts || {}).reduce((a, b) => a + b, 0)
-  const negPct = overview
-    ? Math.round(((overview.sentiment_counts?.negative || 0) / Math.max(sentTotal, 1)) * 100)
+  const sentTotal = Object.values(outletAnalytics?.sentiment_counts || {}).reduce((a, b) => a + b, 0)
+  const negPct = outletAnalytics
+    ? Math.round(((outletAnalytics.sentiment_counts?.negative || 0) / Math.max(sentTotal, 1)) * 100)
     : 0
-  const posPct = overview
-    ? Math.round(((overview.sentiment_counts?.positive || 0) / Math.max(sentTotal, 1)) * 100)
+  const posPct = outletAnalytics
+    ? Math.round(((outletAnalytics.sentiment_counts?.positive || 0) / Math.max(sentTotal, 1)) * 100)
     : 0
 
   const sortedOutlets = [...outlets].sort((a, b) => (b.avg_rating || 0) - (a.avg_rating || 0))
@@ -214,18 +222,18 @@ export default function Dashboard() {
         />
         <StatCard
           icon={MessageCircle} label="Total Reviews"
-          value={loading ? '…' : overview?.total_reviews?.toLocaleString()}
-          sub="All platforms combined" color="purple"
+          value={loading ? '…' : outletAnalytics?.total_reviews?.toLocaleString()}
+          sub="Selected outlet, last 30 days" color="purple"
         />
         <StatCard
           icon={Star} label="Avg Rating"
-          value={loading ? '…' : overview?.avg_rating ? `${overview.avg_rating}★` : '—'}
+          value={loading ? '…' : outletAnalytics?.avg_rating ? `${outletAnalytics.avg_rating}★` : '—'}
           sub={`${posPct}% positive sentiment`} color="green"
         />
         <StatCard
           icon={AlertTriangle} label="Negative Rate"
           value={loading ? '…' : `${negPct}%`}
-          sub={`${overview?.sentiment_counts?.negative || 0} negative reviews`}
+          sub={`${outletAnalytics?.sentiment_counts?.negative || 0} negative reviews`}
           color={negPct > 30 ? 'red' : 'brand'}
         />
       </div>
@@ -242,7 +250,7 @@ export default function Dashboard() {
               <p className="section-title mb-0">Sentiment Distribution</p>
             </div>
             <div className="flex-1 min-h-0 overflow-y-auto">
-              <SentimentDonut data={overview?.sentiment_counts || {}} />
+              <SentimentDonut data={outletAnalytics?.sentiment_counts || {}} />
             </div>
           </div>
 
@@ -265,7 +273,7 @@ export default function Dashboard() {
               <p className="section-title mb-0">Top Complaint Categories</p>
             </div>
             <div className="flex-1 min-h-0 overflow-y-auto">
-              <ComplaintCategories data={overview?.category_counts || {}} />
+              <ComplaintCategories data={outletAnalytics?.category_counts || {}} />
             </div>
           </div>
         </div>
